@@ -12,7 +12,7 @@ import cv2
 from PIL import Image, ImageQt
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QPixmap, QImage
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget
 
 import matplotlib.pyplot as plt
 
@@ -31,7 +31,7 @@ class MainWindow(QMainWindow):
         self.new_image_dir = None
 
         self.setWindowTitle(f"IG POST RESIZER - V.{self.VERSION}")
-        self.setFixedSize(QSize(1200, 600))
+        self.setFixedSize(QSize(1600, 900))
 
         # Status bar
         self.base_status_bar = QStatusBar()
@@ -92,30 +92,32 @@ class MainWindow(QMainWindow):
         self.old_image_pixmap = QLabel()
         self.old_image_size_label = QLabel()
         self.old_image_dir_label = QLabel()
+        toolbar_h_layout = QHBoxLayout()
+        self.draw_polygon_button = QPushButton("Draw Polygon")
+        self.draw_polygon_button.setCheckable(True)
+        toolbar_h_layout.addWidget(self.draw_polygon_button)
         old_image_v_layout.addWidget(self.old_image_dir_label)
-        old_image_v_layout.addWidget(self.old_image_pixmap)
         old_image_v_layout.addWidget(self.old_image_size_label)
+        old_image_v_layout.addWidget(self.old_image_pixmap)
+        old_image_v_layout.addLayout(toolbar_h_layout)
         old_image_group.setLayout(old_image_v_layout)
 
-        new_image_group = QGroupBox("Resized")
-        new_image_v_layout = QVBoxLayout()
-        self.new_image_pixmap = QLabel()
-        self.new_image_size_label = QLabel()
-        self.new_image_dir_label = QLabel()
-        new_image_v_layout.addWidget(self.new_image_dir_label)
-        new_image_v_layout.addWidget(self.new_image_pixmap)
-        new_image_v_layout.addWidget(self.new_image_size_label)
-        new_image_group.setLayout(new_image_v_layout)
+        seg_label_list_group = QGroupBox("Mask & Label")
+        seg_label_list_group.setMaximumWidth(500)
+        seg_label_list_v_layout = QVBoxLayout()
+        seg_label_list_table = QTableWidget()
+        seg_label_list_v_layout.addWidget(seg_label_list_table)
+        seg_label_list_group.setLayout(seg_label_list_v_layout)
 
         main_h_layout.addWidget(function_v_widget)
         main_h_layout.addWidget(old_image_group)
-        main_h_layout.addWidget(new_image_group)
+        main_h_layout.addWidget(seg_label_list_group)
         base_widget.setLayout(main_h_layout)
 
     def set_pixmap_from_array(self, obj, image_arr):
         qimage = QImage(image_arr, image_arr.shape[1], image_arr.shape[0], QImage.Format_RGB888)
         qpixmap = QPixmap.fromImage(qimage)
-        qpixmap = qpixmap.scaled(450, 600, Qt.KeepAspectRatio)
+        qpixmap = qpixmap.scaled(800, 800, Qt.KeepAspectRatio)
         obj.setPixmap(qpixmap)
 
     def process_tif(self, tif_image):
