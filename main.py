@@ -10,15 +10,68 @@ import numpy as np
 import copy
 import cv2
 from PIL import Image, ImageQt
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtCore import QEvent, QSize, Qt, QPoint
+from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget
 
 import matplotlib.pyplot as plt
 
+class QLabelCanvas(QLabel):
+    def __init__(self):
+        super(QLabel, self).__init__()
+        self.setMouseTracking(True)
+        self.draw_lines = False
+        self.draw_lines_action_started = False
+
+        self.free_drawing_start_point = None
+        self.free_drawing_absolute_start_point = None
+        self.free_drawing_last_frame = None
+
+    def eventFilter(self, obj, event):
+        if self.draw_lines:
+            if event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+                self.free_drawing_start_point = QPoint(event.pos().x(), event.pos().y())
+                self.free_drawing_absolute_start_point = QPoint(event.pos().x(), event.pos().y())
+                self.draw_lines_action_started = True
+
+            if event.type() == QEvent.MouseButtonPress and event.button() == Qt.RightButton:
+                curr_point = QPoint(event.pos().x(), event.pos().y())
+                self.add_line_on_canvas_and_set_pixmap(self.free_drawing_start_point, curr_point)
+                self.add_line_on_canvas_and_set_pixmap(curr_point, self.free_drawing_absolute_start_point)
+                self.draw_lines_action_started = False
+
+            if self.draw_lines_action_started and event.type() == QEvent.MouseMove:
+                curr_point = QPoint(event.pos().x(), event.pos().y())
+                self.add_line_on_canvas_and_set_pixmap(self.free_drawing_start_point, curr_point)
+                self.free_drawing_start_point = curr_point
+
+        return super(QLabelCanvas, self).eventFilter(obj, event)
+
+    def initiate_canvas_and_set_pixmap(self, qpixmap):
+        print("initiate_canvas_and_set_pixmap")
+        self.canvas = qpixmap
+        self.set_and_update_pixmap()
+
+        self.painter = QPainter(self.canvas)
+        self.painter.setPen(QPen(Qt.black))
+        self.painter.end()
+
+    def add_line_on_canvas_and_set_pixmap(self, start, end):
+        self.painter.begin(self.canvas)
+        self.painter.setPen(QPen(Qt.black))
+        self.painter.drawLine(start, end)
+        self.painter.end()
+        self.setPixmap(self.canvas)
+        self.update()
+
+    def set_and_update_pixmap(self):
+        self.setPixmap(self.canvas)
+        self.update()
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
-        super().__init__()
+        super(QMainWindow, self).__init__()
 
         # Basic software information
         self.VERSION = "0.3.0"
@@ -30,7 +83,7 @@ class MainWindow(QMainWindow):
         self.new_image = None
         self.new_image_dir = None
 
-        self.setWindowTitle(f"IG POST RESIZER - V.{self.VERSION}")
+        self.setWindowTitle(f"AlphaSEG - V.{self.VERSION}")
         self.setFixedSize(QSize(1600, 900))
 
         # Status bar
@@ -62,7 +115,6 @@ class MainWindow(QMainWindow):
         self.padding_color_option.setCurrentText("Black")
         # Convert & Preview
         convert_button = QPushButton("Convert")
-        convert_button.clicked.connect(self.convert_to_new)
         # Add widgets to layout
         resize_v_layout.addWidget(self.quick_resize_option)
         resize_v_layout.addWidget(self.padding_color_option)
@@ -89,13 +141,19 @@ class MainWindow(QMainWindow):
 
         old_image_group = QGroupBox("Original")
         old_image_v_layout = QVBoxLayout()
-        self.old_image_pixmap = QLabel()
+
+        self.old_image_pixmap = QLabelCanvas()
+        self.old_image_pixmap.installEventFilter(self.old_image_pixmap)
+
         self.old_image_size_label = QLabel()
         self.old_image_dir_label = QLabel()
         toolbar_h_layout = QHBoxLayout()
-        self.draw_polygon_button = QPushButton("Draw Polygon")
+
+        self.draw_polygon_button = QPushButton("Draw contour (segmentation)")
         self.draw_polygon_button.setCheckable(True)
+        self.draw_polygon_button.clicked.connect(self.enable_drawing)
         toolbar_h_layout.addWidget(self.draw_polygon_button)
+
         old_image_v_layout.addWidget(self.old_image_dir_label)
         old_image_v_layout.addWidget(self.old_image_size_label)
         old_image_v_layout.addWidget(self.old_image_pixmap)
@@ -114,11 +172,17 @@ class MainWindow(QMainWindow):
         main_h_layout.addWidget(seg_label_list_group)
         base_widget.setLayout(main_h_layout)
 
-    def set_pixmap_from_array(self, obj, image_arr):
+    def enable_drawing(self):
+        if self.draw_polygon_button.isChecked():
+            self.old_image_pixmap.draw_lines = True
+        else:
+            self.old_image_pixmap.draw_lines = False
+
+    def set_pixmap_from_array(self, image_arr):
         qimage = QImage(image_arr, image_arr.shape[1], image_arr.shape[0], QImage.Format_RGB888)
-        qpixmap = QPixmap.fromImage(qimage)
-        qpixmap = qpixmap.scaled(800, 800, Qt.KeepAspectRatio)
-        obj.setPixmap(qpixmap)
+        self.qpixmap = QPixmap.fromImage(qimage)
+        self.qpixmap = self.qpixmap.scaled(800, 800, Qt.KeepAspectRatio)
+        self.old_image_pixmap.initiate_canvas_and_set_pixmap(self.qpixmap)     
 
     def process_tif(self, tif_image):
         def normalize_image(image):
@@ -140,7 +204,7 @@ class MainWindow(QMainWindow):
         if open_file[-3:] in support_file_format:
             self.orig_image_dir = open_file
             self.orig_image = self.image_loader(self.orig_image_dir)
-            self.set_pixmap_from_array(self.old_image_pixmap, self.orig_image)
+            self.set_pixmap_from_array(self.orig_image)
             self.old_image_size_label.setText(f"Size: {self.orig_image.shape[1]} x {self.orig_image.shape[0]}")
             self.old_image_dir_label.setText(f"{self.orig_image_dir}")
         elif open_file == "":
@@ -160,13 +224,6 @@ class MainWindow(QMainWindow):
         if image_dir.split(".")[-1] in ["tif", "TIF", "tiff", "TIFF"]:
             return self.process_tif(cv2.imread(image_dir, -1))
         return np.array(Image.open(image_dir))
-
-    def convert_to_new(self):
-        if self.orig_image is not None:
-            self.new_image = self.image_quick_resize(self.orig_image, str(self.quick_resize_option.currentText()), str(self.padding_color_option.currentText()))
-            self.set_pixmap_from_array(self.new_image_pixmap, self.new_image)
-            self.new_image_size_label.setText(f"Size: {self.new_image.shape[1]} x {self.new_image.shape[0]}")
-            #self.new_image_dir_label.setText(f"{self.new_image_dir}")
 
     def get_image_aspect_ratio(self, image_arr):
         image_ratio_orig_height = image_arr.shape[0]
@@ -230,10 +287,20 @@ class MainWindow(QMainWindow):
         else:
             return
 
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.MouseMove:
+            pass
+            #print("Mouse move")
+            #print(event.pos())
+        return super(MainWindow, self).eventFilter(obj, event)
+        
 
-app = QApplication(sys.argv)
+def main():
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.installEventFilter(window)
+    window.show()
+    sys.exit(app.exec_())
 
-window = MainWindow()
-window.show()
-
-app.exec()
+if __name__ == '__main__':
+    main()
