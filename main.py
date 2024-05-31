@@ -12,7 +12,7 @@ import cv2
 from PIL import Image, ImageQt
 from PyQt5.QtCore import QEvent, QSize, Qt, QPoint, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget, QTableWidgetItem, QCheckBox
 
 
 class QLabelCanvas(QLabel):
@@ -23,6 +23,7 @@ class QLabelCanvas(QLabel):
         self.setMouseTracking(True)
         self.draw_lines = False
         self.draw_lines_action_started = False
+        self.canvas_orig = None
 
         # Free drawing (segmentation)
         self.free_drawing_start_point = None
@@ -65,7 +66,6 @@ class QLabelCanvas(QLabel):
     def initiate_canvas_and_set_pixmap(self, qpixmap):
         self.canvas = qpixmap
         self.set_and_update_pixmap()
-
         self.painter = QPainter(self.canvas)
         self.painter.setPen(QPen(Qt.black))
         self.painter.end()
@@ -82,6 +82,29 @@ class QLabelCanvas(QLabel):
         self.setPixmap(self.canvas)
         self.update()
 
+    def draw_areas_on_pixmap_based_on_points(self, points):
+        print("draw_areas_on_pixmap_based_on_points")
+        self.painter.begin(self.canvas)
+        self.painter.setPen(QPen(Qt.black))
+        for i in range(0, len(points) - 1):
+            self.painter.drawLine(points[i], points[i+1])
+        self.painter.drawLine(points[-1], points[0])
+        self.painter.end()
+        self.set_and_update_pixmap()
+
+    def refresh_pixmap_acc_to_check_box(self, points, areas_visualization_list):
+        print("refresh_pixmap_acc_to_check_box")
+        self.canvas = self.canvas_orig.copy()
+        self.set_and_update_pixmap()
+        for i in range(0, len(areas_visualization_list)):
+            if areas_visualization_list[i]:
+                self.draw_areas_on_pixmap_based_on_points(points[i])
+            else:
+                pass
+
+    def clear_all_markings(self):
+        self.setPixmap(self.canvas_orig)
+        self.update()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -155,17 +178,35 @@ class MainWindow(QMainWindow):
         old_image_group.setLayout(old_image_v_layout)
 
         seg_label_list_group = QGroupBox("MASK AND LABEL")
-        seg_label_list_group.setMaximumWidth(500)
+        seg_label_list_group.setMaximumWidth(400)
         seg_label_list_v_layout = QVBoxLayout()
 
         self.seg_label_list_table = QTableWidget()
-        self.seg_label_list_table.setColumnCount(3)
-        self.seg_label_list_table.setHorizontalHeaderLabels(["Seg. No.", "No. of Points", "Label"])
+        self.seg_label_list_table.setColumnCount(4)
+        self.seg_label_list_table.setHorizontalHeaderLabels(["Select", "Show", "Label", "No. of Points"])
         self.seg_label_list_table.setWordWrap(True)
         self.seg_label_list_table.clearContents()
         self.seg_label_list_table.setRowCount(0)
+        #self.seg_label_list_table.itemClicked.connect(self.refresh_pixmap_with_visualization_option)
+
+        seg_label_list_function_h_layout = QHBoxLayout()
+        self.remove_mask_button = QPushButton("Remove Selected")
+        self.export_mask_button = QPushButton("Export Selected")
+        seg_label_list_function_h_layout.addWidget(self.remove_mask_button)
+        seg_label_list_function_h_layout.addWidget(self.export_mask_button)
+
+        seg_label_list_function_h_layout_2 = QHBoxLayout()
+        self.remove_all_mask_button = QPushButton("Remove All")
+        #self.remove_all_mask_button.clicked.connect(self.reset_pixmap)
+        self.remove_all_mask_button.clicked.connect(self.old_image_pixmap.clear_all_markings)
+        self.export_all_mask_button = QPushButton("Export All")
+        #self.export_all_mask_button.clicked.connect(self.experimental)
+        seg_label_list_function_h_layout_2.addWidget(self.remove_all_mask_button)
+        seg_label_list_function_h_layout_2.addWidget(self.export_all_mask_button)
 
         seg_label_list_v_layout.addWidget(self.seg_label_list_table)
+        seg_label_list_v_layout.addLayout(seg_label_list_function_h_layout)
+        seg_label_list_v_layout.addLayout(seg_label_list_function_h_layout_2)
         seg_label_list_group.setLayout(seg_label_list_v_layout)
 
         main_h_layout.addWidget(function_v_widget)
@@ -183,6 +224,8 @@ class MainWindow(QMainWindow):
         qimage = QImage(image_arr, image_arr.shape[1], image_arr.shape[0], QImage.Format_RGB888)
         self.qpixmap = QPixmap.fromImage(qimage)
         self.qpixmap = self.qpixmap.scaled(700, 700, Qt.KeepAspectRatio)
+        self.qpixmap_orig = self.qpixmap.copy()
+        self.old_image_pixmap.canvas_orig = self.qpixmap_orig
         self.old_image_pixmap.initiate_canvas_and_set_pixmap(self.qpixmap)
 
     def process_tif(self, tif_image):
@@ -234,10 +277,36 @@ class MainWindow(QMainWindow):
 
         for i in range(0, len(self.areas)):
             self.seg_label_list_table.insertRow(self.seg_label_list_table.rowCount())
-            self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 0, QTableWidgetItem(str(i + 1)))
-            self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 1, QTableWidgetItem(str(len(self.areas[i]))))
-            self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 2, QTableWidgetItem(str(self.area_labels[i])))
 
+            table_select_check_box = QCheckBox()
+            table_select_check_box.setCheckState(False)
+            table_show_check_box = QCheckBox()
+            table_show_check_box.setCheckState(False)
+            table_show_check_box.clicked.connect(self.refresh_pixmap_with_visualization_option)
+
+            self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 0, table_select_check_box)
+            self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 1, table_show_check_box)
+            self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 2, QTableWidgetItem(str(self.area_labels[i])))
+            self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 3, QTableWidgetItem(str(len(self.areas[i]))))
+
+    def refresh_pixmap_with_visualization_option(self):
+        if self.seg_label_list_table.rowCount() == 0:
+            pass
+        else:
+            print("refresh_pixmap_with_visualization_option")
+            checked_list = []
+            for i in range(0, self.seg_label_list_table.rowCount()):
+                print("Loop row")
+                print(self.seg_label_list_table.cellWidget(i, 1))
+                if self.seg_label_list_table.cellWidget(i, 1).isChecked():
+                    checked_list.append(True)
+                else:
+                    checked_list.append(False)
+            self.old_image_pixmap.refresh_pixmap_acc_to_check_box(self.areas, checked_list)
+
+    def reset_pixmap(self):
+        self.old_image_pixmap.setPixmap(self.qpixmap_orig)
+        self.old_image_pixmap.update()
 
 def main():
     app = QApplication(sys.argv)
