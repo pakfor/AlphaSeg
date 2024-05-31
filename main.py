@@ -12,7 +12,7 @@ import cv2
 from PIL import Image, ImageQt
 from PyQt5.QtCore import QEvent, QSize, Qt, QPoint, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget, QTableWidgetItem, QCheckBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget, QTableWidgetItem, QCheckBox, QLineEdit
 
 
 class QLabelCanvas(QLabel):
@@ -31,6 +31,7 @@ class QLabelCanvas(QLabel):
         self.temp_area = []
         self.areas = []
         self.area_labels = []
+        self.area_visible = []
 
     def eventFilter(self, obj, event):
         if self.draw_lines:
@@ -51,6 +52,7 @@ class QLabelCanvas(QLabel):
 
                 self.areas.append(self.temp_area)
                 self.area_labels.append("NO LABEL")
+                self.area_visible.append(True)
                 self.temp_area = []
                 self.table_refresh_signal.emit()
 
@@ -105,6 +107,8 @@ class QLabelCanvas(QLabel):
     def clear_all_markings(self):
         self.setPixmap(self.canvas_orig)
         self.update()
+        self.areas = []
+        self.area_labels = []
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -272,22 +276,38 @@ class MainWindow(QMainWindow):
     def refresh_seg_label_list_table(self):
         self.areas = self.old_image_pixmap.areas
         self.area_labels = self.old_image_pixmap.area_labels
+        self.area_visible = self.old_image_pixmap.area_visible
         self.seg_label_list_table.clearContents()
         self.seg_label_list_table.setRowCount(0)
 
         for i in range(0, len(self.areas)):
             self.seg_label_list_table.insertRow(self.seg_label_list_table.rowCount())
 
+            # Check box for selection
             table_select_check_box = QCheckBox()
             table_select_check_box.setCheckState(False)
+
+            # Check box for visualization option
             table_show_check_box = QCheckBox()
-            table_show_check_box.setCheckState(False)
+            table_show_check_box.setCheckState(self.area_visible[i])
             table_show_check_box.clicked.connect(self.refresh_pixmap_with_visualization_option)
+
+            # Labels for marked areas
+            #table_area_label_label = QLabel(str(self.area_labels[i]))
+            table_area_label_text = QLineEdit()
+            table_area_label_text.setText(str(self.area_labels[i]))
+            table_area_label_text.textChanged.connect(self.refresh_area_labels)
+
+            # Labels for number of marked points that define the areas
+            table_number_of_area_points = QLabel(str(len(self.areas[i])))
 
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 0, table_select_check_box)
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 1, table_show_check_box)
-            self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 2, QTableWidgetItem(str(self.area_labels[i])))
-            self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 3, QTableWidgetItem(str(len(self.areas[i]))))
+            self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 2, table_area_label_text)
+            self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 3, table_number_of_area_points)
+
+            #self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 2, QTableWidgetItem(str(self.area_labels[i])))
+            #self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 3, QTableWidgetItem(str(len(self.areas[i]))))
 
     def refresh_pixmap_with_visualization_option(self):
         if self.seg_label_list_table.rowCount() == 0:
@@ -296,13 +316,22 @@ class MainWindow(QMainWindow):
             print("refresh_pixmap_with_visualization_option")
             checked_list = []
             for i in range(0, self.seg_label_list_table.rowCount()):
-                print("Loop row")
                 print(self.seg_label_list_table.cellWidget(i, 1))
                 if self.seg_label_list_table.cellWidget(i, 1).isChecked():
                     checked_list.append(True)
                 else:
                     checked_list.append(False)
+            self.old_image_pixmap.area_visible = checked_list
             self.old_image_pixmap.refresh_pixmap_acc_to_check_box(self.areas, checked_list)
+
+    def refresh_area_labels(self):
+        if self.seg_label_list_table.rowCount() == 0:
+            pass
+        else:
+            area_label_list = []
+            for i in range(0, self.seg_label_list_table.rowCount()):
+                area_label_list.append(self.seg_label_list_table.cellWidget(i, 2).text())
+            self.old_image_pixmap.area_labels = area_label_list
 
     def reset_pixmap(self):
         self.old_image_pixmap.setPixmap(self.qpixmap_orig)
