@@ -12,7 +12,7 @@ import cv2
 from PIL import Image, ImageQt
 from PyQt5.QtCore import QEvent, QSize, Qt, QPoint, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget, QTableWidgetItem, QCheckBox, QLineEdit
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget, QTableWidgetItem, QCheckBox, QLineEdit, QMenuBar, QMenu, QAction
 
 
 class QLabelCanvas(QLabel):
@@ -125,7 +125,26 @@ class MainWindow(QMainWindow):
         self.new_image_dir = None
 
         self.setWindowTitle(f"AlphaSEG - V.{self.VERSION}")
-        self.setFixedSize(QSize(1600, 900))
+        self.setFixedSize(QSize(1300, 900))
+
+        # Menu Bar
+        self.menu_bar = QMenuBar(self)
+        self.file_menu = QMenu("&File", self)
+        self.edit_menu = QMenu("&Edit", self)
+        self.help_menu = QMenu("&Help", self)
+        self.menu_bar.addMenu(self.file_menu)
+        self.menu_bar.addMenu(self.edit_menu)
+        self.menu_bar.addMenu(self.help_menu)
+        self.setMenuBar(self.menu_bar)
+        self.open_action = QAction("&Open", self)
+        self.open_action.triggered.connect(self.browse_image)
+        self.file_menu.addAction(self.open_action)
+        self.save_action = QAction("&Save", self)
+        #self.save_action.triggered.connect(self.saveAsMesh)
+        self.file_menu.addAction(self.save_action)
+        self.pref_action = QAction("&Preferences", self)
+        #self.pref_action.triggered.connect(self.open_pref_window)
+        self.edit_menu.addAction(self.pref_action)
 
         # Status bar
         self.base_status_bar = QStatusBar()
@@ -141,23 +160,6 @@ class MainWindow(QMainWindow):
         function_v_widget = QWidget()
         function_v_widget.setFixedWidth(150)
         function_v_layout = QVBoxLayout()
-
-        io_group = QGroupBox("File")
-        io_v_layout = QVBoxLayout()
-        import_button = QPushButton("Import")
-        import_button.clicked.connect(self.browse_image)
-        #export_option = QComboBox()
-        #export_option.addItems(["PNG", "JPG"])
-        #export_option.setCurrentText("PNG")
-        export_button = QPushButton("Export")
-        export_button.clicked.connect(self.save_image)
-        io_v_layout.addWidget(import_button)
-        #io_v_layout.addWidget(export_option)
-        io_v_layout.addWidget(export_button)
-        io_group.setLayout(io_v_layout)
-
-        function_v_layout.addWidget(io_group)
-        function_v_widget.setLayout(function_v_layout)
 
         old_image_group = QGroupBox("VIEW")
         old_image_v_layout = QVBoxLayout()
@@ -213,7 +215,6 @@ class MainWindow(QMainWindow):
         seg_label_list_v_layout.addLayout(seg_label_list_function_h_layout_2)
         seg_label_list_group.setLayout(seg_label_list_v_layout)
 
-        main_h_layout.addWidget(function_v_widget)
         main_h_layout.addWidget(old_image_group)
         main_h_layout.addWidget(seg_label_list_group)
         base_widget.setLayout(main_h_layout)
@@ -226,9 +227,14 @@ class MainWindow(QMainWindow):
 
     def set_pixmap_from_array(self, image_arr):
         qimage = QImage(image_arr, image_arr.shape[1], image_arr.shape[0], QImage.Format_RGB888)
+        self.image_width_orig = image_arr.shape[1]
+        self.image_height_orig = image_arr.shape[0]
         self.qpixmap = QPixmap.fromImage(qimage)
         self.qpixmap = self.qpixmap.scaled(700, 700, Qt.KeepAspectRatio)
         self.qpixmap_orig = self.qpixmap.copy()
+        print(self.qpixmap.rect())
+        self.image_width_scaled = self.qpixmap_orig.rect().width()
+        self.image_height_scaled = self.qpixmap_orig.rect().height()
         self.old_image_pixmap.canvas_orig = self.qpixmap_orig
         self.old_image_pixmap.initiate_canvas_and_set_pixmap(self.qpixmap)
 
@@ -336,6 +342,14 @@ class MainWindow(QMainWindow):
     def reset_pixmap(self):
         self.old_image_pixmap.setPixmap(self.qpixmap_orig)
         self.old_image_pixmap.update()
+
+    def export_areas(self, areas, mode, save_dir):
+        if mode == "mask":
+            # Assumed the image is scaled with the same ratio along its width and height
+            image_scaled_ratio = int(self.image_width_orig) / int(self.image_height_orig)
+            # Create mask
+            # https://stackoverflow.com/questions/71837896/how-to-mask-outside-or-inside-an-arbitrary-shape-in-python
+            pass
 
 def main():
     app = QApplication(sys.argv)
