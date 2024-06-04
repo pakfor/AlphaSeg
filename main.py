@@ -6,9 +6,11 @@ Created on Sun Mar 10 15:29:00 2024
 """
 
 import sys
-import numpy as np
 import copy
 import cv2
+import json
+import numpy as np
+import matplotlib.pyplot as plt
 from PIL import Image, ImageQt
 from PyQt5.QtCore import QEvent, QSize, Qt, QPoint, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
@@ -58,6 +60,7 @@ class QLabelCanvas(QLabel):
 
             if self.draw_lines_action_started and event.type() == QEvent.MouseMove:
                 curr_point = QPoint(event.pos().x(), event.pos().y())
+                #print(curr_point)
                 #print(f"Current Point: {curr_point}")
                 self.add_line_on_canvas_and_set_pixmap(self.free_drawing_start_point, curr_point)
                 self.free_drawing_start_point = curr_point
@@ -139,9 +142,11 @@ class MainWindow(QMainWindow):
         self.open_action = QAction("&Open", self)
         self.open_action.triggered.connect(self.browse_image)
         self.file_menu.addAction(self.open_action)
-        self.save_action = QAction("&Save", self)
-        #self.save_action.triggered.connect(self.saveAsMesh)
-        self.file_menu.addAction(self.save_action)
+        self.export_action = QAction("&Export", self)
+        self.export_action.triggered.connect(self.export)
+        self.file_menu.addAction(self.export_action)
+        self.import_action = QAction("&Import", self)
+        self.file_menu.addAction(self.import_action)
         self.pref_action = QAction("&Preferences", self)
         #self.pref_action.triggered.connect(self.open_pref_window)
         self.edit_menu.addAction(self.pref_action)
@@ -343,12 +348,50 @@ class MainWindow(QMainWindow):
         self.old_image_pixmap.setPixmap(self.qpixmap_orig)
         self.old_image_pixmap.update()
 
+    def export(self):
+        self.export_areas(None, "points", None)
+
     def export_areas(self, areas, mode, save_dir):
         if mode == "mask":
             # Assumed the image is scaled with the same ratio along its width and height
-            image_scaled_ratio = int(self.image_width_orig) / int(self.image_height_orig)
-            # Create mask
-            # https://stackoverflow.com/questions/71837896/how-to-mask-outside-or-inside-an-arbitrary-shape-in-python
+            image_scaled_ratio = int(self.image_height_orig) / int(self.image_height_scaled)
+            area_labels_set = list(set(self.old_image_pixmap.area_labels))
+            area_labels = self.old_image_pixmap.area_labels
+            points = self.old_image_pixmap.areas
+            number_of_classes = len(area_labels_set)
+            mask_npy = np.zeros((int(self.image_height_orig), int(self.image_width_orig), number_of_classes))
+
+            for i in range(0, len(points)):
+                points_ready = []
+                for j in range(0, len(points[i])):
+                    points_ready.append([min([int(points[i][j].y() * image_scaled_ratio), int(self.image_height_orig) - 1]),
+                                         min([int(points[i][j].x() * image_scaled_ratio), int(self.image_width_orig) - 1])])
+                points_ready = np.array(points_ready)
+                point_specific_label = area_labels[i]
+                index = area_labels_set.index(point_specific_label)
+                mask_temp = mask_npy[:, :, index]
+                cv2.fillPoly(mask_temp, [points_ready], (1))
+                plt.imshow(mask_temp)
+                plt.show()
+                mask_npy[:, :, index] = mask_temp
+        elif mode == "points":
+            image_scaled_ratio = int(self.image_height_orig) / int(self.image_height_scaled)
+            area_labels = self.old_image_pixmap.area_labels
+            points = self.old_image_pixmap.areas
+            point_label_pair_dict = {}
+            for i in range(0, len(points)):
+                points_ready = []
+                for j in range(0, len(points[i])):
+                    points_ready.append([min([int(points[i][j].y() * image_scaled_ratio), int(self.image_height_orig) - 1]),
+                                         min([int(points[i][j].x() * image_scaled_ratio), int(self.image_width_orig) - 1])])
+                point_specific_label = area_labels[i]
+                if point_specific_label not in point_label_pair_dict.keys():
+                    point_label_pair_dict[point_specific_label] = [points_ready]
+                else:
+                    point_label_pair_dict[point_specific_label].append(points_ready)
+            point_label_pair_json = json.dumps(point_label_pair_dict, indent = 4)
+            print(point_label_pair_json)
+        else:
             pass
 
 def main():
