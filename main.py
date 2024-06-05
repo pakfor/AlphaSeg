@@ -142,9 +142,14 @@ class MainWindow(QMainWindow):
         self.open_action = QAction("&Open", self)
         self.open_action.triggered.connect(self.browse_image)
         self.file_menu.addAction(self.open_action)
-        self.export_action = QAction("&Export", self)
-        self.export_action.triggered.connect(self.export)
-        self.file_menu.addAction(self.export_action)
+        # Export
+        self.export_mask_action = QAction("&Export Masks", self)
+        self.export_mask_action.triggered.connect(self.export_mask)
+        self.file_menu.addAction(self.export_mask_action)
+        self.export_points_action = QAction("&Export Points", self)
+        self.export_points_action.triggered.connect(self.export_points)
+        self.file_menu.addAction(self.export_points_action)
+        # Import
         self.import_action = QAction("&Import", self)
         self.file_menu.addAction(self.import_action)
         self.pref_action = QAction("&Preferences", self)
@@ -348,19 +353,23 @@ class MainWindow(QMainWindow):
         self.old_image_pixmap.setPixmap(self.qpixmap_orig)
         self.old_image_pixmap.update()
 
-    def export(self):
+    def export_mask(self):
+        self.export_areas(None, "mask", None)
+
+    def export_points(self):
         self.export_areas(None, "points", None)
 
     def export_areas(self, areas, mode, save_dir):
         if mode == "mask":
+            save_file_as_npy_dir = QFileDialog.getSaveFileName(self, "Save File", "", "All Files (*);;NPY (*.npy)")[0]
             # Assumed the image is scaled with the same ratio along its width and height
             image_scaled_ratio = int(self.image_height_orig) / int(self.image_height_scaled)
+            #print("Image scaled ratio", image_scaled_ratio)
             area_labels_set = list(set(self.old_image_pixmap.area_labels))
             area_labels = self.old_image_pixmap.area_labels
             points = self.old_image_pixmap.areas
             number_of_classes = len(area_labels_set)
             mask_npy = np.zeros((int(self.image_height_orig), int(self.image_width_orig), number_of_classes))
-
             for i in range(0, len(points)):
                 points_ready = []
                 for j in range(0, len(points[i])):
@@ -374,7 +383,9 @@ class MainWindow(QMainWindow):
                 plt.imshow(mask_temp)
                 plt.show()
                 mask_npy[:, :, index] = mask_temp
+            np.save(save_file_as_npy_dir, mask_npy)
         elif mode == "points":
+            save_file_as_json_dir = QFileDialog.getSaveFileName(self, "Save File", "", "All Files (*);;JSON (*.json)")[0]
             image_scaled_ratio = int(self.image_height_orig) / int(self.image_height_scaled)
             area_labels = self.old_image_pixmap.area_labels
             points = self.old_image_pixmap.areas
@@ -389,8 +400,10 @@ class MainWindow(QMainWindow):
                     point_label_pair_dict[point_specific_label] = [points_ready]
                 else:
                     point_label_pair_dict[point_specific_label].append(points_ready)
-            point_label_pair_json = json.dumps(point_label_pair_dict, indent = 4)
-            print(point_label_pair_json)
+            #point_label_pair_json = json.dumps(point_label_pair_dict, indent = 4)
+            save_as_json = open(save_file_as_json_dir, "w")
+            json.dump(point_label_pair_dict, save_as_json, indent=4)
+            save_as_json.close()
         else:
             pass
 
