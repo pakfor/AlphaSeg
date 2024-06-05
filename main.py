@@ -149,6 +149,9 @@ class MainWindow(QMainWindow):
         self.export_points_action = QAction("&Export Points", self)
         self.export_points_action.triggered.connect(self.export_points)
         self.file_menu.addAction(self.export_points_action)
+        self.export_vis_action = QAction("&Export Visualizations", self)
+        self.export_vis_action.triggered.connect(self.export_vis)
+        self.file_menu.addAction(self.export_vis_action)
         # Import
         self.import_action = QAction("&Import", self)
         self.file_menu.addAction(self.import_action)
@@ -259,7 +262,7 @@ class MainWindow(QMainWindow):
         tif_red = tif_image[:, :, 2]
         tif_green = tif_image[:, :, 1]
         tif_blue = tif_image[:, :, 0]
-        tif_image = (normalize_image(np.stack((tif_red, tif_green, tif_blue), axis=2)) * 255.0).astype('int8')
+        tif_image = (normalize_image(np.stack((tif_red, tif_green, tif_blue), axis=2)) * 255.0).astype('uint8')
         return tif_image
 
     def browse_image(self):
@@ -359,6 +362,9 @@ class MainWindow(QMainWindow):
     def export_points(self):
         self.export_areas(None, "points", None)
 
+    def export_vis(self):
+        self.export_areas(None, "vis", None)
+
     def export_areas(self, areas, mode, save_dir):
         if mode == "mask":
             save_file_as_npy_dir = QFileDialog.getSaveFileName(self, "Save File", "", "All Files (*);;NPY (*.npy)")[0]
@@ -373,8 +379,8 @@ class MainWindow(QMainWindow):
             for i in range(0, len(points)):
                 points_ready = []
                 for j in range(0, len(points[i])):
-                    points_ready.append([min([int(points[i][j].y() * image_scaled_ratio), int(self.image_height_orig) - 1]),
-                                         min([int(points[i][j].x() * image_scaled_ratio), int(self.image_width_orig) - 1])])
+                    points_ready.append([min([int(points[i][j].x() * image_scaled_ratio), int(self.image_width_orig) - 1]),
+                                         min([int(points[i][j].y() * image_scaled_ratio), int(self.image_height_orig) - 1])])
                 points_ready = np.array(points_ready)
                 point_specific_label = area_labels[i]
                 index = area_labels_set.index(point_specific_label)
@@ -393,8 +399,8 @@ class MainWindow(QMainWindow):
             for i in range(0, len(points)):
                 points_ready = []
                 for j in range(0, len(points[i])):
-                    points_ready.append([min([int(points[i][j].y() * image_scaled_ratio), int(self.image_height_orig) - 1]),
-                                         min([int(points[i][j].x() * image_scaled_ratio), int(self.image_width_orig) - 1])])
+                    points_ready.append([min([int(points[i][j].x() * image_scaled_ratio), int(self.image_width_orig) - 1]),
+                                         min([int(points[i][j].y() * image_scaled_ratio), int(self.image_height_orig) - 1])])
                 point_specific_label = area_labels[i]
                 if point_specific_label not in point_label_pair_dict.keys():
                     point_label_pair_dict[point_specific_label] = [points_ready]
@@ -404,8 +410,40 @@ class MainWindow(QMainWindow):
             save_as_json = open(save_file_as_json_dir, "w")
             json.dump(point_label_pair_dict, save_as_json, indent=4)
             save_as_json.close()
+        elif mode == "vis":
+            save_file_as_vis_dir = QFileDialog.getSaveFileName(self, "Save File", "", "All Files (*);;PNG (*.png)")[0]
+            # Assumed the image is scaled with the same ratio along its width and height
+            image_scaled_ratio = int(self.image_height_orig) / int(self.image_height_scaled)
+            #print("Image scaled ratio", image_scaled_ratio)
+            area_labels_set = list(set(self.old_image_pixmap.area_labels))
+            area_labels = self.old_image_pixmap.area_labels
+            points = self.old_image_pixmap.areas
+            number_of_classes = len(area_labels_set)
+            mask_npy = np.zeros((int(self.image_height_orig), int(self.image_width_orig), number_of_classes))
+            for i in range(0, len(points)):
+                points_ready = []
+                for j in range(0, len(points[i])):
+                    points_ready.append([min([int(points[i][j].x() * image_scaled_ratio), int(self.image_width_orig) - 1]),
+                                         min([int(points[i][j].y() * image_scaled_ratio), int(self.image_height_orig) - 1])])
+                points_ready = np.array(points_ready)
+                point_specific_label = area_labels[i]
+                index = area_labels_set.index(point_specific_label)
+                mask_temp = mask_npy[:, :, index]
+                cv2.fillPoly(mask_temp, [points_ready], (1))
+                #plt.imshow(mask_temp)
+                #plt.show()
+                mask_npy[:, :, index] = mask_temp
+            for i in range(0, len(area_labels_set)):
+                label_mask = mask_npy[:, :, i]
+                label_specific_save_dir = save_file_as_vis_dir.replace("." + save_file_as_vis_dir.split(".")[-1], "_" + area_labels_set[i] + "." + save_file_as_vis_dir.split(".")[-1])
+                plt.imsave(label_specific_save_dir, self.image_mask_overlay(self.orig_image, label_mask), vmin=0.0, vmax=255.0)
         else:
             pass
+
+    def image_mask_overlay(self, image_orig, mask):
+        print(np.max(image_orig), np.min(image_orig))
+        image_orig[:, :, 0][mask!=0] = 240
+        return image_orig
 
 def main():
     app = QApplication(sys.argv)
