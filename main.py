@@ -110,9 +110,22 @@ class QLabelCanvas(QLabel):
     def clear_all_markings(self):
         self.setPixmap(self.canvas_orig)
         self.update()
+        self.canvas = self.canvas_orig.copy()
         self.areas = []
         self.area_labels = []
         self.table_refresh_signal.emit()
+
+    def clear_selected_markings(self, selected_list):
+        self.areas = [self.areas[i] for i in range(len(self.areas)) if not selected_list[i]]
+        self.area_labels = [self.area_labels[i] for i in range(len(self.area_labels)) if not selected_list[i]]
+        print("Remove: Length of self.areas", len(self.areas))
+        if len(self.areas) == 0:
+            self.clear_all_markings()
+        else:
+            self.canvas = self.canvas_orig.copy()
+            for points in self.areas:
+                self.draw_areas_on_pixmap_based_on_points(points)
+            self.table_refresh_signal.emit()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -208,16 +221,13 @@ class MainWindow(QMainWindow):
 
         seg_label_list_function_h_layout = QHBoxLayout()
         self.remove_mask_button = QPushButton("Remove Selected")
-        self.export_mask_button = QPushButton("Export Selected")
+        self.remove_mask_button.clicked.connect(self.remove_selected)
         seg_label_list_function_h_layout.addWidget(self.remove_mask_button)
-        seg_label_list_function_h_layout.addWidget(self.export_mask_button)
 
         seg_label_list_function_h_layout_2 = QHBoxLayout()
         self.remove_all_mask_button = QPushButton("Remove All")
         self.remove_all_mask_button.clicked.connect(self.old_image_pixmap.clear_all_markings)
-        self.export_all_mask_button = QPushButton("Export All")
         seg_label_list_function_h_layout_2.addWidget(self.remove_all_mask_button)
-        seg_label_list_function_h_layout_2.addWidget(self.export_all_mask_button)
 
         seg_label_list_v_layout.addWidget(self.seg_label_list_table)
         seg_label_list_v_layout.addLayout(seg_label_list_function_h_layout)
@@ -239,7 +249,7 @@ class MainWindow(QMainWindow):
         self.image_width_orig = image_arr.shape[1]
         self.image_height_orig = image_arr.shape[0]
         self.qpixmap = QPixmap.fromImage(qimage)
-        self.qpixmap = self.qpixmap.scaled(750, 750, Qt.KeepAspectRatio)
+        self.qpixmap = self.qpixmap.scaled(700, 700, Qt.KeepAspectRatio)
         self.qpixmap_orig = self.qpixmap.copy()
         print(self.qpixmap.rect())
         self.image_width_scaled = self.qpixmap_orig.rect().width()
@@ -328,7 +338,6 @@ class MainWindow(QMainWindow):
         if self.seg_label_list_table.rowCount() == 0:
             pass
         else:
-            print("refresh_pixmap_with_visualization_option")
             checked_list = []
             for i in range(0, self.seg_label_list_table.rowCount()):
                 print(self.seg_label_list_table.cellWidget(i, 1))
@@ -436,6 +445,21 @@ class MainWindow(QMainWindow):
         else:
             pass
 
+    # Remove Markings ########################################################
+    def remove_selected(self):
+        if self.seg_label_list_table.rowCount() == 0:
+            pass
+        else:
+            checked_list = []
+            for i in range(0, self.seg_label_list_table.rowCount()):
+                if self.seg_label_list_table.cellWidget(i, 0).isChecked():
+                    checked_list.append(True)
+                else:
+                    checked_list.append(False)
+            print("Remove: Checked list", checked_list)
+            self.old_image_pixmap.clear_selected_markings(checked_list)
+
+    # Visualization ##########################################################
     def image_mask_overlay(self, image_orig, mask):
         print(np.max(image_orig), np.min(image_orig))
         image_orig[:, :, 0][mask!=0] = 240
