@@ -112,6 +112,7 @@ class QLabelCanvas(QLabel):
         self.update()
         self.areas = []
         self.area_labels = []
+        self.table_refresh_signal.emit()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -170,9 +171,6 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(base_widget)
 
         main_h_layout = QHBoxLayout()
-        function_v_widget = QWidget()
-        function_v_widget.setFixedWidth(150)
-        function_v_layout = QVBoxLayout()
 
         old_image_group = QGroupBox("VIEW")
         old_image_v_layout = QVBoxLayout()
@@ -216,10 +214,8 @@ class MainWindow(QMainWindow):
 
         seg_label_list_function_h_layout_2 = QHBoxLayout()
         self.remove_all_mask_button = QPushButton("Remove All")
-        #self.remove_all_mask_button.clicked.connect(self.reset_pixmap)
         self.remove_all_mask_button.clicked.connect(self.old_image_pixmap.clear_all_markings)
         self.export_all_mask_button = QPushButton("Export All")
-        #self.export_all_mask_button.clicked.connect(self.experimental)
         seg_label_list_function_h_layout_2.addWidget(self.remove_all_mask_button)
         seg_label_list_function_h_layout_2.addWidget(self.export_all_mask_button)
 
@@ -243,7 +239,7 @@ class MainWindow(QMainWindow):
         self.image_width_orig = image_arr.shape[1]
         self.image_height_orig = image_arr.shape[0]
         self.qpixmap = QPixmap.fromImage(qimage)
-        self.qpixmap = self.qpixmap.scaled(700, 700, Qt.KeepAspectRatio)
+        self.qpixmap = self.qpixmap.scaled(750, 750, Qt.KeepAspectRatio)
         self.qpixmap_orig = self.qpixmap.copy()
         print(self.qpixmap.rect())
         self.image_width_scaled = self.qpixmap_orig.rect().width()
