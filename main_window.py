@@ -201,7 +201,6 @@ class MainWindow(QMainWindow):
             table_show_check_box.clicked.connect(self.refresh_pixmap_with_visualization_option)
 
             # Labels for marked areas
-            #table_area_label_label = QLabel(str(self.area_labels[i]))
             table_area_label_text = QLineEdit()
             table_area_label_text.setText(str(self.area_labels[i]))
             table_area_label_text.textChanged.connect(self.refresh_area_labels)
@@ -213,9 +212,6 @@ class MainWindow(QMainWindow):
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 1, table_show_check_box)
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 2, table_area_label_text)
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 3, table_number_of_area_points)
-
-            #self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 2, QTableWidgetItem(str(self.area_labels[i])))
-            #self.seg_label_list_table.setItem(self.seg_label_list_table.rowCount() - 1, 3, QTableWidgetItem(str(len(self.areas[i]))))
 
     def refresh_pixmap_with_visualization_option(self):
         if self.seg_label_list_table.rowCount() == 0:
