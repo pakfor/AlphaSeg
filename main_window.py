@@ -16,8 +16,8 @@ class MainWindow(QMainWindow):
         super(QMainWindow, self).__init__()
 
         # Basic software information
-        self.VERSION = "0.3.0"
-        self.RELEASE_DATE = "11-Mar-2024"
+        self.VERSION = "1.1"
+        self.RELEASE_DATE = "22-Jun-2024"
         self.COMPOSER = "NGPF"
 
         self.orig_image = None
@@ -26,7 +26,7 @@ class MainWindow(QMainWindow):
         self.new_image_dir = None
 
         self.setWindowTitle(f"AlphaSEG - V.{self.VERSION}")
-        self.setFixedSize(QSize(1300, 900))
+        self.setFixedSize(QSize(1300, 1000))
 
         # Menu Bar
         self.menu_bar = QMenuBar(self)
@@ -67,31 +67,47 @@ class MainWindow(QMainWindow):
         base_widget = QWidget(self)
         self.setCentralWidget(base_widget)
 
+        # Main
         main_h_layout = QHBoxLayout()
 
-        old_image_group = QGroupBox("VIEW")
-        old_image_v_layout = QVBoxLayout()
+        # Leftmost image column
+        left_image_v_layout = QVBoxLayout()
 
+        # Image information
+        image_info_group = QGroupBox("Information")
+        image_info_v_layout = QVBoxLayout()
+        image_info_v_layout.setAlignment(Qt.AlignTop)
+        self.old_image_size_label = QLabel()
+        self.old_image_dir_label = QLabel()
+        image_info_v_layout.addWidget(self.old_image_size_label)
+        image_info_v_layout.addWidget(self.old_image_dir_label)
+        image_info_group.setLayout(image_info_v_layout)
+        # Main display
+        view_group = QGroupBox("Image")
+        view_group_h_layout = QHBoxLayout()
+        view_group_h_layout.setAlignment(Qt.AlignTop)
         self.old_image_pixmap = main_display.QLabelCanvas()
         self.old_image_pixmap.installEventFilter(self.old_image_pixmap)
         self.old_image_pixmap.table_refresh_signal.connect(self.refresh_seg_label_list_table)
-
-        self.old_image_size_label = QLabel()
-        self.old_image_dir_label = QLabel()
-        toolbar_h_layout = QHBoxLayout()
-
-        self.draw_polygon_button = QPushButton("CREATE MASK")
+        view_group_h_layout.addWidget(self.old_image_pixmap)
+        view_group.setLayout(view_group_h_layout)
+        view_group.setMinimumHeight(700)
+        # Tool
+        tool_group = QGroupBox("Tool")
+        tool_group_h_layout = QHBoxLayout()
+        tool_group_h_layout.setAlignment(Qt.AlignTop)
+        self.draw_polygon_button = QPushButton("Create Mask")
         self.draw_polygon_button.setCheckable(True)
         self.draw_polygon_button.clicked.connect(self.enable_drawing)
-        toolbar_h_layout.addWidget(self.draw_polygon_button)
+        tool_group_h_layout.addWidget(self.draw_polygon_button)
+        tool_group.setLayout(tool_group_h_layout)
 
-        old_image_v_layout.addWidget(self.old_image_dir_label)
-        old_image_v_layout.addWidget(self.old_image_size_label)
-        old_image_v_layout.addWidget(self.old_image_pixmap)
-        old_image_v_layout.addLayout(toolbar_h_layout)
-        old_image_group.setLayout(old_image_v_layout)
+        left_image_v_layout.addWidget(image_info_group)
+        left_image_v_layout.addWidget(view_group)
+        left_image_v_layout.addWidget(tool_group)
 
-        seg_label_list_group = QGroupBox("MASK AND LABEL")
+        # Mask and label
+        seg_label_list_group = QGroupBox("Mask and Label")
         seg_label_list_group.setMaximumWidth(400)
         seg_label_list_v_layout = QVBoxLayout()
 
@@ -101,7 +117,6 @@ class MainWindow(QMainWindow):
         self.seg_label_list_table.setWordWrap(True)
         self.seg_label_list_table.clearContents()
         self.seg_label_list_table.setRowCount(0)
-        #self.seg_label_list_table.itemClicked.connect(self.refresh_pixmap_with_visualization_option)
 
         seg_label_list_function_h_layout = QHBoxLayout()
         self.remove_mask_button = QPushButton("Remove Selected")
@@ -118,7 +133,7 @@ class MainWindow(QMainWindow):
         seg_label_list_v_layout.addLayout(seg_label_list_function_h_layout_2)
         seg_label_list_group.setLayout(seg_label_list_v_layout)
 
-        main_h_layout.addWidget(old_image_group)
+        main_h_layout.addLayout(left_image_v_layout)
         main_h_layout.addWidget(seg_label_list_group)
         base_widget.setLayout(main_h_layout)
 
@@ -133,7 +148,7 @@ class MainWindow(QMainWindow):
         self.image_width_orig = image_arr.shape[1]
         self.image_height_orig = image_arr.shape[0]
         self.qpixmap = QPixmap.fromImage(qimage)
-        self.qpixmap = self.qpixmap.scaled(700, 700, Qt.KeepAspectRatio)
+        self.qpixmap = self.qpixmap.scaled(650, 650, Qt.KeepAspectRatio)
         self.qpixmap_orig = self.qpixmap.copy()
         self.image_width_scaled = self.qpixmap_orig.rect().width()
         self.image_height_scaled = self.qpixmap_orig.rect().height()
@@ -162,7 +177,7 @@ class MainWindow(QMainWindow):
             self.orig_image = self.image_loader(self.orig_image_dir)
             self.set_pixmap_from_array(self.orig_image)
             self.old_image_size_label.setText(f"Size: {self.orig_image.shape[1]} x {self.orig_image.shape[0]}")
-            self.old_image_dir_label.setText(f"{self.orig_image_dir}")
+            self.old_image_dir_label.setText(f"Directory: {self.orig_image_dir}")
         elif open_file == "":
             pass
         else:
