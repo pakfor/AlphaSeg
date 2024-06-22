@@ -8,7 +8,10 @@ from PIL import Image, ImageQt
 from PyQt5.QtCore import QEvent, QSize, Qt, QPoint, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
 from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget, QTableWidgetItem, QCheckBox, QLineEdit, QMenuBar, QMenu, QAction
+
+# Custom modules
 import main_display
+import import_points_window
 
 
 class MainWindow(QMainWindow):
@@ -52,6 +55,7 @@ class MainWindow(QMainWindow):
         self.file_menu.addAction(self.export_vis_action)
         # Import
         self.import_action = QAction("&Import", self)
+        self.import_action.triggered.connect(self.import_points_from_json)
         self.file_menu.addAction(self.import_action)
         self.pref_action = QAction("&Preferences", self)
         #self.pref_action.triggered.connect(self.open_pref_window)
@@ -136,6 +140,9 @@ class MainWindow(QMainWindow):
         main_h_layout.addLayout(left_image_v_layout)
         main_h_layout.addWidget(seg_label_list_group)
         base_widget.setLayout(main_h_layout)
+
+        # Other sub windows
+        self.import_points_json_window = None
 
     def enable_drawing(self):
         if self.draw_polygon_button.isChecked():
@@ -354,3 +361,18 @@ class MainWindow(QMainWindow):
         print(np.max(image_orig), np.min(image_orig))
         image_orig[:, :, 0][mask!=0] = 240
         return image_orig
+
+    # Import Points ##########################################################
+    def import_points_from_json(self):
+        support_file_format = ["JSON", "json"]
+        open_file = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*);;JSON (*.json;*.JSON);;")[0]
+        if open_file[-4:] in support_file_format:
+            with open(open_file) as json_points:
+                data = json.load(json_points) # as dictionary
+            self.import_points_json_window = import_points_window.ImportPointsWindow()
+            self.import_points_json_window.fill_table(data)
+            self.import_points_json_window.show()
+        elif open_file == "":
+            pass
+        else:
+            return
