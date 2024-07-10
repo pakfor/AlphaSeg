@@ -1,4 +1,3 @@
-import sys
 import copy
 import cv2
 import json
@@ -31,6 +30,8 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle(f"AlphaSEG - V.{self.VERSION}")
         self.setFixedSize(QSize(1300, 1000))
+
+        self.pixmap_display_size = (650, 650)
 
         # Menu Bar
         self.menu_bar = QMenuBar(self)
@@ -111,8 +112,12 @@ class MainWindow(QMainWindow):
 
         # Tool
         tool_group = QGroupBox("Tool")
+        tool_group_v_layout = QVBoxLayout()
+        tool_group_v_layout.setAlignment(Qt.AlignTop)
         tool_group_h_layout = QHBoxLayout()
         tool_group_h_layout.setAlignment(Qt.AlignTop)
+        tool_group_h_layout_2 = QHBoxLayout()
+        tool_group_h_layout_2.setAlignment(Qt.AlignTop)
         # Free drawing (segmentation)
         self.draw_polygon_button = QPushButton("Create Mask")
         self.draw_polygon_button.setCheckable(True)
@@ -123,7 +128,18 @@ class MainWindow(QMainWindow):
         self.draw_b_box_button.clicked.connect(self.enable_bounding_box_drawing)
         tool_group_h_layout.addWidget(self.draw_polygon_button)
         tool_group_h_layout.addWidget(self.draw_b_box_button)
-        tool_group.setLayout(tool_group_h_layout)
+        # Zoom function
+        self.magnify_zoom_button = QPushButton("Zoom In")
+        self.magnify_zoom_button.setCheckable(True)
+        self.magnify_zoom_button.clicked.connect(self.enable_zoom)
+        # Zoom to origin function
+        self.origin_zoom_button = QPushButton("Zoom to Origin")
+        self.origin_zoom_button.setCheckable(True)
+        tool_group_h_layout_2.addWidget(self.magnify_zoom_button)
+        tool_group_h_layout_2.addWidget(self.origin_zoom_button)
+        tool_group_v_layout.addLayout(tool_group_h_layout)
+        tool_group_v_layout.addLayout(tool_group_h_layout_2)
+        tool_group.setLayout(tool_group_v_layout)
 
         left_image_v_layout.addWidget(image_info_group)
         left_image_v_layout.addWidget(view_group)
@@ -179,17 +195,31 @@ class MainWindow(QMainWindow):
             self.old_image_pixmap.draw_b_box = False
             self.draw_polygon_button.setEnabled(True)
 
+    def enable_zoom(self):
+        if self.magnify_zoom_button.isChecked():
+            self.old_image_pixmap.zoom = True
+        else:
+            self.old_image_pixmap.zoom = False
+
     def set_pixmap_from_array(self, image_arr):
-        qimage = QImage(image_arr, image_arr.shape[1], image_arr.shape[0], QImage.Format_RGB888)
+        image_arr = image_arr[:, :, 0:3].astype('uint8')
+        print(image_arr.shape)
+        plt.imshow(image_arr)
+        plt.show()
+        qimage = QImage(image_arr, image_arr.shape[1], image_arr.shape[0], 3 * image_arr.shape[1], QImage.Format_RGB888)
         self.image_width_orig = image_arr.shape[1]
         self.image_height_orig = image_arr.shape[0]
         self.qpixmap = QPixmap.fromImage(qimage)
-        self.qpixmap = self.qpixmap.scaled(650, 650, Qt.KeepAspectRatio)
+        self.qpixmap = self.qpixmap.scaled(self.pixmap_display_size[0], self.pixmap_display_size[1], Qt.KeepAspectRatio)
         self.qpixmap_orig = self.qpixmap.copy()
         self.image_width_scaled = self.qpixmap_orig.rect().width()
         self.image_height_scaled = self.qpixmap_orig.rect().height()
         self.old_image_pixmap.canvas_orig = self.qpixmap_orig
         self.old_image_pixmap.initiate_canvas_and_set_pixmap(self.qpixmap)
+        self.old_image_pixmap.canvas_display_size = self.pixmap_display_size
+        self.old_image_pixmap.canvas_orig_size = (self.image_width_orig, self.image_height_orig)
+        self.old_image_pixmap.canvas_array = image_arr
+        self.old_image_pixmap.canvas_scaling = self.image_width_orig / self.image_width_scaled
 
     def process_tif(self, tif_image):
         def normalize_image(image):

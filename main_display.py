@@ -1,13 +1,7 @@
-import sys
-import copy
-import cv2
-import json
-import numpy as np
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 import matplotlib.pyplot as plt
-from PIL import Image, ImageQt
-from PyQt5.QtCore import QEvent, QSize, Qt, QPoint, pyqtSignal
-from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout, QHBoxLayout, QComboBox, QWidget, QFileDialog, QLabel, QGroupBox, QStatusBar, QTableWidget, QTableWidgetItem, QCheckBox, QLineEdit, QMenuBar, QMenu, QAction
 
 
 class QLabelCanvas(QLabel):
@@ -20,6 +14,12 @@ class QLabelCanvas(QLabel):
         self.draw_lines_action_started = False
         self.canvas_orig = None
 
+        # Basic information
+        self.canvas_array = None  # Scale it and get the pixmap directly
+        self.canvas_orig_size = None  # (Width, Height)
+        self.canvas_display_size = None  # (Width, Height)
+        self.canvas_scaling = None
+
         # Free drawing (segmentation)
         self.free_drawing_start_point = None
         self.free_drawing_absolute_start_point = None
@@ -31,6 +31,11 @@ class QLabelCanvas(QLabel):
         self.b_box_start_corner = False
         self.canvas_last_frame = None
         self.marking_info = [] # [TYPE, LABEL, [CORNERS/POINTS], VISABILITY]
+
+        # Zoom in/out
+        self.zoom = False
+        self.zoom_started = False
+        self.zoom_start_corner = False
 
     def eventFilter(self, obj, event):
         # Free drawing
@@ -79,6 +84,22 @@ class QLabelCanvas(QLabel):
             if self.draw_b_box_action_started and event.type() == QEvent.MouseMove:
                 curr_point = QPoint(event.pos().x(), event.pos().y())
                 self.add_bounding_box_on_canvas_and_set_pixmap(self.b_box_start_corner, curr_point)
+
+        # Zoom
+        elif self.zoom:
+            # Start
+            if not self.zoom_started and event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
+                self.zoom_start_corner = QPoint(event.pos().x(), event.pos().y())
+                self.zoom_started = True
+            # Finish
+            if self.zoom_started and event.type() == QEvent.MouseButtonPress and event.button() == Qt.RightButton:
+                curr_point = QPoint(event.pos().x(), event.pos().y())
+                self.zoom_started = False
+                self.replace_canvas_with_zoom(self.zoom_start_corner, curr_point)
+            # Moving
+            if self.zoom_started and event.type() == QEvent.MouseMove:
+                curr_point = QPoint(event.pos().x(), event.pos().y())
+                self.add_bounding_box_on_canvas_and_set_pixmap(self.zoom_start_corner, curr_point)
 
         return super(QLabelCanvas, self).eventFilter(obj, event)
 
@@ -188,3 +209,18 @@ class QLabelCanvas(QLabel):
                     pass
             self.canvas_last_frame = self.canvas.copy()
             self.table_refresh_signal.emit()
+
+    def replace_canvas_with_zoom(self, corner1, corner2):
+        x_max = int(max(corner1.x(), corner2.x()) * self.canvas_scaling)
+        y_max = int(max(corner1.y(), corner2.y()) * self.canvas_scaling)
+        x_min = int(min(corner1.x(), corner2.x()) * self.canvas_scaling)
+        y_min = int(min(corner1.y(), corner2.y()) * self.canvas_scaling)
+        print(x_min, x_max, y_min, y_max)
+        zoomed_array = self.canvas_array[y_min:y_max, x_min:x_max, :].astype('uint8')
+        plt.imshow(zoomed_array)
+        plt.show()
+        qimage = QImage(zoomed_array, zoomed_array.shape[1], zoomed_array.shape[0], 3 * zoomed_array.shape[1], QImage.Format_RGB888)
+        qpixmap = QPixmap.fromImage(qimage)
+        qpixmap = qpixmap.scaled(self.canvas_display_size[0], self.canvas_display_size[1], Qt.KeepAspectRatio)
+        self.canvas = qpixmap.copy()
+        self.set_and_update_pixmap()
