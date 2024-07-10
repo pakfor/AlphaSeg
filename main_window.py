@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout,
 # Custom modules
 import main_display
 import import_points_window
+import export_option_window
 
 
 class MainWindow(QMainWindow):
@@ -46,13 +47,23 @@ class MainWindow(QMainWindow):
         # Export
         self.export_mask_action = QAction("&Export Masks", self)
         self.export_mask_action.triggered.connect(self.export_mask)
-        self.file_menu.addAction(self.export_mask_action)
+        #self.file_menu.addAction(self.export_mask_action)
         self.export_points_action = QAction("&Export Points", self)
         self.export_points_action.triggered.connect(self.export_points)
-        self.file_menu.addAction(self.export_points_action)
+        #self.file_menu.addAction(self.export_points_action)
         self.export_vis_action = QAction("&Export Visualizations", self)
         self.export_vis_action.triggered.connect(self.export_vis)
-        self.file_menu.addAction(self.export_vis_action)
+        #self.file_menu.addAction(self.export_vis_action)
+
+        self.export_function = QAction("Export")
+        self.export_function.triggered.connect(self.export_with_option)
+        self.file_menu.addAction(self.export_function)
+        #self.export_markings = QMenu("&Export Markings")
+        #self.export_markings_selected = QAction("Selected")
+        #self.export_markings_all = QAction("All")
+        #self.export_markings.addActions([self.export_markings_all, self.export_markings_selected])
+        #self.file_menu.addMenu(self.export_markings)
+        
         # Import
         self.import_action = QAction("&Import", self)
         self.import_action.triggered.connect(self.import_points_from_json)
@@ -86,6 +97,7 @@ class MainWindow(QMainWindow):
         image_info_v_layout.addWidget(self.old_image_size_label)
         image_info_v_layout.addWidget(self.old_image_dir_label)
         image_info_group.setLayout(image_info_v_layout)
+
         # Main display
         view_group = QGroupBox("Image")
         view_group_h_layout = QHBoxLayout()
@@ -96,14 +108,21 @@ class MainWindow(QMainWindow):
         view_group_h_layout.addWidget(self.old_image_pixmap)
         view_group.setLayout(view_group_h_layout)
         view_group.setMinimumHeight(700)
+
         # Tool
         tool_group = QGroupBox("Tool")
         tool_group_h_layout = QHBoxLayout()
         tool_group_h_layout.setAlignment(Qt.AlignTop)
+        # Free drawing (segmentation)
         self.draw_polygon_button = QPushButton("Create Mask")
         self.draw_polygon_button.setCheckable(True)
         self.draw_polygon_button.clicked.connect(self.enable_drawing)
+        # Bounding box (object detection)
+        self.draw_b_box_button = QPushButton("Create Bounding Box")
+        self.draw_b_box_button.setCheckable(True)
+        self.draw_b_box_button.clicked.connect(self.enable_bounding_box_drawing)
         tool_group_h_layout.addWidget(self.draw_polygon_button)
+        tool_group_h_layout.addWidget(self.draw_b_box_button)
         tool_group.setLayout(tool_group_h_layout)
 
         left_image_v_layout.addWidget(image_info_group)
@@ -117,7 +136,7 @@ class MainWindow(QMainWindow):
 
         self.seg_label_list_table = QTableWidget()
         self.seg_label_list_table.setColumnCount(4)
-        self.seg_label_list_table.setHorizontalHeaderLabels(["Select", "Show", "Label", "No. of Points"])
+        self.seg_label_list_table.setHorizontalHeaderLabels(["Select", "Show", "Type", "Label"])
         self.seg_label_list_table.setWordWrap(True)
         self.seg_label_list_table.clearContents()
         self.seg_label_list_table.setRowCount(0)
@@ -147,8 +166,18 @@ class MainWindow(QMainWindow):
     def enable_drawing(self):
         if self.draw_polygon_button.isChecked():
             self.old_image_pixmap.draw_lines = True
+            self.draw_b_box_button.setEnabled(False)
         else:
             self.old_image_pixmap.draw_lines = False
+            self.draw_b_box_button.setEnabled(True)
+
+    def enable_bounding_box_drawing(self):
+        if self.draw_b_box_button.isChecked():
+            self.old_image_pixmap.draw_b_box = True
+            self.draw_polygon_button.setEnabled(False)
+        else:
+            self.old_image_pixmap.draw_b_box = False
+            self.draw_polygon_button.setEnabled(True)
 
     def set_pixmap_from_array(self, image_arr):
         qimage = QImage(image_arr, image_arr.shape[1], image_arr.shape[0], QImage.Format_RGB888)
@@ -204,58 +233,51 @@ class MainWindow(QMainWindow):
         return np.array(Image.open(image_dir))
 
     def refresh_seg_label_list_table(self):
-        self.areas = self.old_image_pixmap.areas
-        self.area_labels = self.old_image_pixmap.area_labels
-        self.area_visible = self.old_image_pixmap.area_visible
+        self.marking_info = self.old_image_pixmap.marking_info
         self.seg_label_list_table.clearContents()
         self.seg_label_list_table.setRowCount(0)
 
-        for i in range(0, len(self.areas)):
+        for i in range(0, len(self.marking_info)):
             self.seg_label_list_table.insertRow(self.seg_label_list_table.rowCount())
 
             # Check box for selection
             table_select_check_box = QCheckBox()
             table_select_check_box.setCheckState(False)
-
             # Check box for visualization option
             table_show_check_box = QCheckBox()
-            table_show_check_box.setCheckState(self.area_visible[i])
+            table_show_check_box.setCheckState(self.marking_info[i][-1])
             table_show_check_box.clicked.connect(self.refresh_pixmap_with_visualization_option)
-
+            # Labels for marking type (Contour/Bounding box)
+            table_area_type_text = QLabel()  # Set as label because the user cannot change the type of the marking
+            table_area_type_text.setText(str(self.marking_info[i][0]))
             # Labels for marked areas
-            table_area_label_text = QLineEdit()
-            table_area_label_text.setText(str(self.area_labels[i]))
+            table_area_label_text = QLineEdit()  # Set as line edit because the label can be changed
+            table_area_label_text.setText(str(self.marking_info[i][1]))
             table_area_label_text.textChanged.connect(self.refresh_area_labels)
-
-            # Labels for number of marked points that define the areas
-            table_number_of_area_points = QLabel(str(len(self.areas[i])))
 
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 0, table_select_check_box)
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 1, table_show_check_box)
-            self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 2, table_area_label_text)
-            self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 3, table_number_of_area_points)
+            self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 2, table_area_type_text)
+            self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 3, table_area_label_text)
 
     def refresh_pixmap_with_visualization_option(self):
         if self.seg_label_list_table.rowCount() == 0:
             pass
         else:
-            checked_list = []
-            for i in range(0, self.seg_label_list_table.rowCount()):
+            for i in range(0, len(self.marking_info)):
                 if self.seg_label_list_table.cellWidget(i, 1).isChecked():
-                    checked_list.append(True)
+                    self.marking_info[i][-1] = True
                 else:
-                    checked_list.append(False)
-            self.old_image_pixmap.area_visible = checked_list
-            self.old_image_pixmap.refresh_pixmap_acc_to_check_box(self.areas, checked_list)
+                    self.marking_info[i][-1] = False
+            self.old_image_pixmap.marking_info = self.marking_info
+            self.old_image_pixmap.refresh_pixmap_acc_to_vis()
 
     def refresh_area_labels(self):
         if self.seg_label_list_table.rowCount() == 0:
             pass
         else:
-            area_label_list = []
-            for i in range(0, self.seg_label_list_table.rowCount()):
-                area_label_list.append(self.seg_label_list_table.cellWidget(i, 2).text())
-            self.old_image_pixmap.area_labels = area_label_list
+            for i in range(0, self.marking_info):
+                self.marking_info[i][1] = self.seg_label_list_table.cellWidget(i, 3).text()
 
     def reset_pixmap(self):
         self.old_image_pixmap.setPixmap(self.qpixmap_orig)
@@ -376,3 +398,8 @@ class MainWindow(QMainWindow):
             pass
         else:
             return
+
+    # Export Option ##########################################################
+    def export_with_option(self):
+        self.export_option_window = export_option_window.ExportOptionWindow(self.marking_info, (self.image_width_orig, self.image_height_orig), (self.image_width_scaled, self.image_height_scaled))
+        self.export_option_window.show()
