@@ -19,6 +19,7 @@ class QLabelCanvas(QLabel):
         self.canvas_orig_size = None  # (Width, Height)
         self.canvas_display_size = None  # (Width, Height)
         self.canvas_scaling = None  # Orig / Display
+        self.canvas_orig_upper_left_corner = (0, 0)  # (X, Y)
 
         # Free drawing (segmentation)
         self.free_drawing_start_point = None
@@ -165,27 +166,27 @@ class QLabelCanvas(QLabel):
     ##########################################################################
     ## Drawing Function ######################################################
     ##########################################################################
-    def scale_points(self, points, to_display=True):
+    def scale_points(self, points, to_display=True, anchor=(0, 0)):
         # Input: points = [QPoint, QPoint, ...]
         # Input: to_real: Define whether changing the points from display scale to real scale, or inverse
+        # Real X = Display X * Scaling + Anchor X
+        # Display X = (Real X - Anchor X) / Scaling
         # QPoints in real scale (relative to image original size)
         scaled_points = []
         for i in range(0, len(points)):
             if to_display:
-                scaled_single_point = QPoint(int(points[i].x() / self.canvas_scaling),
-                                             int(points[i].y() / self.canvas_scaling))
+                scaled_single_point = QPoint(int((points[i].x() - anchor[0]) / self.canvas_scaling),
+                                             int((points[i].y() - anchor[1]) / self.canvas_scaling))
             else:
-                scaled_single_point = QPoint(int(points[i].x() * self.canvas_scaling),
-                                             int(points[i].y() * self.canvas_scaling))
+                scaled_single_point = QPoint(int(points[i].x() * self.canvas_scaling + anchor[0]),
+                                             int(points[i].y() * self.canvas_scaling + anchor[1]))
             scaled_points.append(scaled_single_point)
         return scaled_points
 
-    def draw_bounding_box(self, corners, dynamic=False):
+    def draw_bounding_box(self, corners, dynamic=False, anchor=(0, 0)):
         # Input: corners = [QPoint, QPoint]
         # Corners in real scale (relative to image original size)
-        print(corners)
-        corners = self.scale_points(corners, to_display=True)
-        print(corners)
+        corners = self.scale_points(corners, to_display=True, anchor=anchor)
         corner1 = corners[0]
         corner2 = corners[1]
         corner1_x = corner1.x()
@@ -208,9 +209,9 @@ class QLabelCanvas(QLabel):
         self.painter.end()
         self.set_and_update_pixmap()
 
-    def draw_contour(self, points, dynamic=False):
+    def draw_contour(self, points, dynamic=False, anchor=(0, 0)):
         # Input: points = [[QPoint(), QPoint[]]]
-        points = self.scale_points(points, to_display=True)
+        points = self.scale_points(points, to_display=True, anchor=anchor)
         self.painter.begin(self.canvas)
         self.painter.setPen(QPen(Qt.black))
         if dynamic:
@@ -221,6 +222,9 @@ class QLabelCanvas(QLabel):
             self.painter.drawLine(points[-1], points[0])
         self.painter.end()
         self.set_and_update_pixmap()
+
+    def replace_canvas_origin(self):
+        self.replace_canvas_with_zoom(QPoint(0, 0), QPoint(self.canvas_array.shape[1], self.canvas_array.shape[0]))
 
     def replace_canvas_with_zoom(self, corner1, corner2):
         x_max = max(corner1.x(), corner2.x())
@@ -233,3 +237,16 @@ class QLabelCanvas(QLabel):
         qpixmap = qpixmap.scaled(self.canvas_display_size[0], self.canvas_display_size[1], Qt.KeepAspectRatio)
         self.canvas = qpixmap.copy()
         self.set_and_update_pixmap()
+
+        self.canvas_orig_size = (zoomed_array.shape[1], zoomed_array.shape[0])
+        self.canvas_scaling = self.canvas_orig_size[0] / self.canvas_display_size[0]
+        self.canvas_orig_upper_left_corner = (x_min, y_min)
+
+        # Draw markings
+        for i in range(0, len(self.marking_info)):
+            if self.marking_info[i][0] == "Contour":
+                self.draw_contour(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_upper_left_corner)
+            elif self.marking_info[i][0] == "Bounding Box":
+                self.draw_bounding_box(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_upper_left_corner)
+            else:
+                pass

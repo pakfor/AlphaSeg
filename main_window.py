@@ -45,22 +45,17 @@ class MainWindow(QMainWindow):
         self.open_action = QAction("&Open", self)
         self.open_action.triggered.connect(self.browse_image)
         self.file_menu.addAction(self.open_action)
+
         # Export
         self.export_function = QAction("Export")
         self.export_function.triggered.connect(self.export_with_option)
         self.file_menu.addAction(self.export_function)
-        #self.export_markings = QMenu("&Export Markings")
-        #self.export_markings_selected = QAction("Selected")
-        #self.export_markings_all = QAction("All")
-        #self.export_markings.addActions([self.export_markings_all, self.export_markings_selected])
-        #self.file_menu.addMenu(self.export_markings)
-        
+
         # Import
         self.import_action = QAction("&Import", self)
         self.import_action.triggered.connect(self.import_points_from_json)
         self.file_menu.addAction(self.import_action)
         self.pref_action = QAction("&Preferences", self)
-        #self.pref_action.triggered.connect(self.open_pref_window)
         self.edit_menu.addAction(self.pref_action)
 
         # Status bar
@@ -124,7 +119,8 @@ class MainWindow(QMainWindow):
         self.magnify_zoom_button.clicked.connect(self.enable_zoom)
         # Zoom to origin function
         self.origin_zoom_button = QPushButton("Zoom to Origin")
-        self.origin_zoom_button.setCheckable(True)
+        self.origin_zoom_button.setCheckable(False)
+        self.origin_zoom_button.clicked.connect(self.zoom_to_origin)
         tool_group_h_layout_2.addWidget(self.magnify_zoom_button)
         tool_group_h_layout_2.addWidget(self.origin_zoom_button)
         tool_group_v_layout.addLayout(tool_group_h_layout)
@@ -190,6 +186,9 @@ class MainWindow(QMainWindow):
             self.old_image_pixmap.zoom = True
         else:
             self.old_image_pixmap.zoom = False
+
+    def zoom_to_origin(self):
+        self.old_image_pixmap.replace_canvas_origin()
 
     def set_pixmap_from_array(self, image_arr):
         image_arr = image_arr[:, :, 0:3].astype('uint8')
