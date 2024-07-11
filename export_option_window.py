@@ -130,10 +130,10 @@ class ExportOptionWindow(QMainWindow):
                 corner1_y = corner1.y()
                 corner2_x = corner2.x()
                 corner2_y = corner2.y()
-                x_center_norm = ((corner1_x + corner2_x) / 2) / self.display_dim[0]
-                y_center_norm = ((corner1_y + corner2_y) / 2) / self.display_dim[1]
-                width_norm = (corner2_x - corner1_x) / self.display_dim[0]
-                height_norm = (corner2_y - corner1_y) / self.display_dim[1]
+                x_center_norm = ((corner1_x + corner2_x) / 2) / self.orig_dim[0]
+                y_center_norm = ((corner1_y + corner2_y) / 2) / self.orig_dim[1]
+                width_norm = (corner2_x - corner1_x) / self.orig_dim[0]
+                height_norm = (corner2_y - corner1_y) / self.orig_dim[1]
                 output_string += f"{label} {x_center_norm} {y_center_norm} {width_norm} {height_norm}\n"
             else:
                 pass
@@ -149,8 +149,8 @@ class ExportOptionWindow(QMainWindow):
             if self.marking_info[i][0] == "Contour":
                 points_ready = []
                 for j in range(0, len(self.marking_info[i][2])):
-                    points_ready.append([min([int(self.marking_info[i][2][j].x() * self.image_scaled_ratio), int(self.orig_dim[0]) - 1]),
-                                         min([int(self.marking_info[i][2][j].y() * self.image_scaled_ratio), int(self.orig_dim[1]) - 1])])
+                    points_ready.append([min([int(self.marking_info[i][2][j].x()), int(self.orig_dim[0]) - 1]),
+                                         min([int(self.marking_info[i][2][j].y()), int(self.orig_dim[1]) - 1])])
                 if self.marking_info[i][1] not in point_label_pair_dict.keys():
                     point_label_pair_dict[self.marking_info[i][1]] = [points_ready]
                 else:
@@ -169,8 +169,8 @@ class ExportOptionWindow(QMainWindow):
             if self.marking_info[i][0] == "Contour":
                 points_ready = []
                 for j in range(0, len(self.marking_info[i][2])):
-                    points_ready.append([min([int(self.marking_info[i][2][j].x() * self.image_scaled_ratio), int(self.orig_dim[0]) - 1]),
-                                         min([int(self.marking_info[i][2][j].y() * self.image_scaled_ratio), int(self.orig_dim[1]) - 1])])
+                    points_ready.append([min([int(self.marking_info[i][2][j].x()), int(self.orig_dim[0]) - 1]),
+                                         min([int(self.marking_info[i][2][j].y()), int(self.orig_dim[1]) - 1])])
                 points_ready = np.array(points_ready)
                 point_specific_label = self.marking_info[i][1]
                 index = label_set.index(point_specific_label)
