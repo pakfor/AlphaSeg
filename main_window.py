@@ -19,8 +19,8 @@ class MainWindow(QMainWindow):
         super(QMainWindow, self).__init__()
 
         # Basic software information
-        self.VERSION = "1.1"
-        self.RELEASE_DATE = "22-Jun-2024"
+        self.VERSION = "1.2"
+        self.RELEASE_DATE = "11-Jul-2024"
         self.COMPOSER = "NGPF"
 
         self.orig_image = None
@@ -209,6 +209,8 @@ class MainWindow(QMainWindow):
         self.old_image_pixmap.canvas_orig_size = (self.image_width_orig, self.image_height_orig)
         self.old_image_pixmap.canvas_array = image_arr
         self.old_image_pixmap.canvas_scaling = self.image_width_orig / self.image_width_scaled
+        self.old_image_pixmap.zoom_corner1 = QPoint(0, 0)
+        self.old_image_pixmap.zoom_corner2 = QPoint(image_arr.shape[1], image_arr.shape[0])
 
     def process_tif(self, tif_image):
         def normalize_image(image):
