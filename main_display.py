@@ -19,7 +19,7 @@ class QLabelCanvas(QLabel):
         self.canvas_orig_size = None  # (Width, Height)
         self.canvas_display_size = None  # (Width, Height)
         self.canvas_scaling = None  # Orig / Display
-        self.canvas_orig_upper_left_corner = (0, 0)  # (X, Y)
+        self.canvas_orig_anchor = (0, 0)  # (X, Y)
 
         # Free drawing (segmentation)
         self.free_drawing_start_point = None
@@ -74,8 +74,6 @@ class QLabelCanvas(QLabel):
         self.table_refresh_signal.emit()
 
     def clear_selected_markings(self, selected_list):
-        print("Clear selected markings")
-        print("Selected list", selected_list)
         self.marking_info = [self.marking_info[i] for i in range(len(self.marking_info)) if not selected_list[i]]
         if len(self.marking_info) == 0:
             self.clear_all_markings()
@@ -100,17 +98,17 @@ class QLabelCanvas(QLabel):
             # Start
             if not self.draw_lines_action_started and event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
                 # All QPoint in real scale
-                self.free_drawing_start_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
-                self.free_drawing_absolute_start_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
+                self.free_drawing_start_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
+                self.free_drawing_absolute_start_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
                 self.draw_lines_action_started = True
                 self.temp_area = []
                 self.temp_area.append(self.free_drawing_absolute_start_point)
             # Finish
             if self.draw_lines_action_started and event.type() == QEvent.MouseButtonPress and event.button() == Qt.RightButton:
                 # All QPoint in real scale
-                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
-                self.draw_contour([self.free_drawing_start_point, curr_point], dynamic=True)
-                self.draw_contour([curr_point, self.free_drawing_absolute_start_point], dynamic=True)
+                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
+                self.draw_contour([self.free_drawing_start_point, curr_point], dynamic=True, anchor=self.canvas_orig_anchor)
+                self.draw_contour([curr_point, self.free_drawing_absolute_start_point], dynamic=True, anchor=self.canvas_orig_anchor)
                 self.canvas_last_frame = self.canvas.copy()
                 self.temp_area.append(curr_point)
                 self.draw_lines_action_started = False
@@ -120,8 +118,8 @@ class QLabelCanvas(QLabel):
             # Moving
             if self.draw_lines_action_started and event.type() == QEvent.MouseMove:
                 # All QPoint in real scale
-                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
-                self.draw_contour([self.free_drawing_start_point, curr_point], dynamic=True)
+                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
+                self.draw_contour([self.free_drawing_start_point, curr_point], dynamic=True, anchor=self.canvas_orig_anchor)
                 self.free_drawing_start_point = curr_point
                 self.temp_area.append(curr_point)
         # Bounding box
@@ -129,13 +127,13 @@ class QLabelCanvas(QLabel):
             # Start
             if not self.draw_b_box_action_started and event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
                 # All QPoint in real scale
-                self.b_box_start_corner = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
+                self.b_box_start_corner = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
                 self.draw_b_box_action_started = True
             # Finish
             if self.draw_b_box_action_started and event.type() == QEvent.MouseButtonPress and event.button() == Qt.RightButton:
                 # All QPoint in real scale
-                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
-                self.draw_bounding_box([self.b_box_start_corner, curr_point], dynamic=True)
+                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
+                self.draw_bounding_box([self.b_box_start_corner, curr_point], dynamic=True, anchor=self.canvas_orig_anchor)
                 self.canvas_last_frame = self.canvas.copy()
                 self.draw_b_box_action_started = False
                 self.marking_info.append(["Bounding Box", "NO LABEL", [self.b_box_start_corner, curr_point], True])
@@ -143,23 +141,23 @@ class QLabelCanvas(QLabel):
             # Moving
             if self.draw_b_box_action_started and event.type() == QEvent.MouseMove:
                 # All QPoint in real scale
-                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
-                self.draw_bounding_box([self.b_box_start_corner, curr_poin], dynamic=True)
+                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
+                self.draw_bounding_box([self.b_box_start_corner, curr_point], dynamic=True, anchor=self.canvas_orig_anchor)
         # Zoom
         elif self.zoom:
             # Start
             if not self.zoom_started and event.type() == QEvent.MouseButtonPress and event.button() == Qt.LeftButton:
-                self.zoom_start_corner = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
+                self.zoom_start_corner = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
                 self.zoom_started = True
             # Finish
             if self.zoom_started and event.type() == QEvent.MouseButtonPress and event.button() == Qt.RightButton:
-                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
+                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
                 self.zoom_started = False
                 self.replace_canvas_with_zoom(self.zoom_start_corner, curr_point)
             # Moving
             if self.zoom_started and event.type() == QEvent.MouseMove:
-                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False)[0]
-                self.draw_bounding_box([self.zoom_start_corner, curr_point], dynamic=True)
+                curr_point = self.scale_points([QPoint(event.pos().x(), event.pos().y())], to_display=False, anchor=self.canvas_orig_anchor)[0]
+                self.draw_bounding_box([self.zoom_start_corner, curr_point], dynamic=True, anchor=self.canvas_orig_anchor)
 
         return super(QLabelCanvas, self).eventFilter(obj, event)
 
@@ -237,16 +235,15 @@ class QLabelCanvas(QLabel):
         qpixmap = qpixmap.scaled(self.canvas_display_size[0], self.canvas_display_size[1], Qt.KeepAspectRatio)
         self.canvas = qpixmap.copy()
         self.set_and_update_pixmap()
-
         self.canvas_orig_size = (zoomed_array.shape[1], zoomed_array.shape[0])
         self.canvas_scaling = self.canvas_orig_size[0] / self.canvas_display_size[0]
-        self.canvas_orig_upper_left_corner = (x_min, y_min)
-
+        self.canvas_orig_anchor = (x_min, y_min)
         # Draw markings
         for i in range(0, len(self.marking_info)):
             if self.marking_info[i][0] == "Contour":
-                self.draw_contour(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_upper_left_corner)
+                self.draw_contour(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_anchor)
             elif self.marking_info[i][0] == "Bounding Box":
-                self.draw_bounding_box(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_upper_left_corner)
+                self.draw_bounding_box(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_anchor)
             else:
                 pass
+        self.canvas_last_frame = self.canvas.copy()
