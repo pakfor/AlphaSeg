@@ -3,6 +3,7 @@ import cv2
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+from cellpose import models
 from PIL import Image, ImageQt
 from PyQt5.QtCore import QEvent, QSize, Qt, QPoint, pyqtSignal
 from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
@@ -36,9 +37,11 @@ class MainWindow(QMainWindow):
         # Menu Bar
         self.menu_bar = QMenuBar(self)
         self.file_menu = QMenu("&File", self)
+        self.automation_menu = QMenu("&Automation", self)
         self.edit_menu = QMenu("&Edit", self)
         self.help_menu = QMenu("&Help", self)
         self.menu_bar.addMenu(self.file_menu)
+        self.menu_bar.addMenu(self.automation_menu)
         self.menu_bar.addMenu(self.edit_menu)
         self.menu_bar.addMenu(self.help_menu)
         self.setMenuBar(self.menu_bar)
@@ -55,6 +58,13 @@ class MainWindow(QMainWindow):
         self.import_action = QAction("&Import", self)
         self.import_action.triggered.connect(self.import_points_from_json)
         self.file_menu.addAction(self.import_action)
+
+        # Automation - Cellpose
+        self.cellpose_mask_function = QAction("&Cellpose", self)
+        self.cellpose_mask_function.triggered.connect(self.generate_mask_with_cellpose)
+        self.automation_menu.addAction(self.cellpose_mask_function)
+
+        # Preference
         self.pref_action = QAction("&Preferences", self)
         self.edit_menu.addAction(self.pref_action)
 
@@ -342,3 +352,28 @@ class MainWindow(QMainWindow):
     def export_with_option(self):
         self.export_option_window = export_option_window.ExportOptionWindow(self.marking_info, (self.image_width_orig, self.image_height_orig), (self.image_width_scaled, self.image_height_scaled))
         self.export_option_window.show()
+
+    ##########################################################################
+    # Automation #############################################################
+    ##########################################################################
+    def generate_mask_with_cellpose(self):
+        self._generate_mask_with_cellpose(image_arr=self.old_image_pixmap.canvas_array)
+
+    def _generate_mask_with_cellpose(self, image_arr, model_type='cyto3', use_gpu=False):
+        model = models.Cellpose(gpu=use_gpu, model_type=model_type)
+        masks, _, _, _ = model.eval(image_arr, diameter=None, channels=[0, 0], flow_threshold=0.4, do_3D=False)
+        num_masks = len(np.unique(masks))
+        for i in range(1, num_masks):  # No need to consider "0" label
+            mask_temp = np.zeros(masks.shape, dtype=np.uint8)
+            mask_temp[masks == i] = 1
+            try:
+                contours = cv2.findContours(mask_temp, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+                coord = contours[0][0]
+                coord_qpoint = []
+                for j in range(0, coord.shape[0]):
+                    coord_qpoint.append(QPoint(coord[j, :, 0][0], coord[j, :, 1][0]))
+                self.old_image_pixmap.marking_info.append(["Contour", "NO LABEL", coord_qpoint, True])
+            except:
+                print("Mask failure")
+        self.refresh_seg_label_list_table()
+        self.old_image_pixmap.refresh_pixmap_acc_to_vis()
