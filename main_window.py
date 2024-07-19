@@ -20,8 +20,8 @@ class MainWindow(QMainWindow):
         super(QMainWindow, self).__init__()
 
         # Basic software information
-        self.VERSION = "1.2"
-        self.RELEASE_DATE = "11-Jul-2024"
+        self.VERSION = "1.3"
+        self.RELEASE_DATE = "18-Jul-2024"
         self.COMPOSER = "NGPF"
 
         self.orig_image = None
@@ -194,11 +194,12 @@ class MainWindow(QMainWindow):
     def enable_zoom(self):
         if self.magnify_zoom_button.isChecked():
             self.old_image_pixmap.zoom = True
-        else:
-            self.old_image_pixmap.zoom = False
+        #else:
+        #    self.old_image_pixmap.zoom = False
 
     def zoom_to_origin(self):
         self.old_image_pixmap.replace_canvas_origin()
+        self.old_image_pixmap.zoom = False
 
     def set_pixmap_from_array(self, image_arr):
         image_arr = image_arr[:, :, 0:3].astype('uint8')
@@ -273,7 +274,7 @@ class MainWindow(QMainWindow):
 
             # Check box for selection
             table_select_check_box = QCheckBox()
-            table_select_check_box.setCheckState(False)
+            table_select_check_box.setChecked(False)
             # Check box for visualization option
             table_show_check_box = QCheckBox()
             table_show_check_box.setCheckState(self.marking_info[i][-1])
@@ -296,8 +297,12 @@ class MainWindow(QMainWindow):
             pass
         else:
             for i in range(0, len(self.marking_info)):
-                if self.seg_label_list_table.cellWidget(i, 1).isChecked():
+                if self.seg_label_list_table.cellWidget(i, 1).checkState() == Qt.Checked:
                     self.marking_info[i][-1] = True
+                    self.marking_info[i][3] = False
+                elif self.seg_label_list_table.cellWidget(i, 1).checkState() == Qt.PartiallyChecked:
+                    self.marking_info[i][-1] = True
+                    self.marking_info[i][3] = True
                 else:
                     self.marking_info[i][-1] = False
             self.old_image_pixmap.marking_info = self.marking_info
@@ -372,7 +377,7 @@ class MainWindow(QMainWindow):
                 coord_qpoint = []
                 for j in range(0, coord.shape[0]):
                     coord_qpoint.append(QPoint(coord[j, :, 0][0], coord[j, :, 1][0]))
-                self.old_image_pixmap.marking_info.append(["Contour", "NO LABEL", coord_qpoint, True])
+                self.old_image_pixmap.marking_info.append(["Contour", "NO LABEL", coord_qpoint, True, True])
             except:
                 print("Mask failure")
         self.refresh_seg_label_list_table()

@@ -13,6 +13,7 @@ class QLabelCanvas(QLabel):
         self.draw_lines = False
         self.draw_lines_action_started = False
         self.canvas_orig = None
+        self.canvas_zoom = None # Store image after zoom (by Ricky)
 
         # Basic information
         self.canvas_array = None  # Scale it and get the pixmap directly
@@ -31,7 +32,7 @@ class QLabelCanvas(QLabel):
         self.draw_b_box_action_started = False
         self.b_box_start_corner = False
         self.canvas_last_frame = None
-        self.marking_info = [] # [TYPE, LABEL, [CORNERS/POINTS], VISABILITY]
+        self.marking_info = [] # [TYPE, LABEL, [CORNERS/POINTS], NUMBER VISABILITY, VISABILITY]
 
         # Zoom in/out
         self.zoom = False
@@ -65,15 +66,24 @@ class QLabelCanvas(QLabel):
 
     # Show selected function
     def refresh_pixmap_acc_to_vis(self):
-        self.canvas = self.canvas_orig.copy()
-        self.set_and_update_pixmap()
-        for i in range(0, len(self.marking_info)):
-            if self.marking_info[i][0] == "Contour" and self.marking_info[i][-1]:
-                self.draw_contour(self.marking_info[i][2], dynamic=False)
-            elif self.marking_info[i][0] == "Bounding Box" and self.marking_info[i][-1]:
-                self.draw_bounding_box(self.marking_info[i][2], dynamic=False)
-            else:
-                pass
+        if self.zoom:
+            self.canvas = self.canvas_zoom.copy()
+            self.set_and_update_pixmap()
+            self.zoom_to_vis()
+        else:
+            self.canvas = self.canvas_orig.copy()
+            self.set_and_update_pixmap()
+            for i in range(0, len(self.marking_info)):
+                if self.marking_info[i][0] == "Contour" and self.marking_info[i][3] and self.marking_info[i][-1]:
+                    self.draw_contour(self.marking_info[i][2], dynamic=False, number=i+1)
+                elif self.marking_info[i][0] == "Bounding Box" and self.marking_info[i][3] and self.marking_info[i][-1]:
+                    self.draw_bounding_box(self.marking_info[i][2], dynamic=False, number=i+1)
+                elif self.marking_info[i][0] == "Contour" and self.marking_info[i][-1]:
+                    self.draw_contour(self.marking_info[i][2], dynamic=False)
+                elif self.marking_info[i][0] == "Bounding Box" and self.marking_info[i][-1]:
+                    self.draw_bounding_box(self.marking_info[i][2], dynamic=False)
+                else:
+                    pass
 
     # Clear markings
     def clear_all_markings(self):
@@ -102,24 +112,36 @@ class QLabelCanvas(QLabel):
         y_max = max(corner1.y(), corner2.y())
         x_min = min(corner1.x(), corner2.x())
         y_min = min(corner1.y(), corner2.y())
+        if (x_max-x_min)>(y_max-y_min):
+            y_max = y_min + (x_max-x_min)
+        elif (x_max-x_min)<(y_max-y_min):
+            x_max = x_min + (y_max-y_min)
         zoomed_array = self.canvas_array[y_min:y_max, x_min:x_max, :].astype('uint8')
         qimage = QImage(zoomed_array, zoomed_array.shape[1], zoomed_array.shape[0], 3 * zoomed_array.shape[1], QImage.Format_RGB888)
         qpixmap = QPixmap.fromImage(qimage)
         qpixmap = qpixmap.scaled(self.canvas_display_size[0], self.canvas_display_size[1], Qt.KeepAspectRatio)
         self.canvas = qpixmap.copy()
         self.set_and_update_pixmap()
+        self.canvas_zoom = qpixmap.copy()
         self.canvas_orig_size = (zoomed_array.shape[1], zoomed_array.shape[0])
         self.canvas_scaling = self.canvas_orig_size[0] / self.canvas_display_size[0]
         self.canvas_orig_anchor = (x_min, y_min)
         # Draw markings
+        self.zoom_to_vis()
+        self.canvas_last_frame = self.canvas.copy()
+    
+    def zoom_to_vis(self):
         for i in range(0, len(self.marking_info)):
-            if self.marking_info[i][0] == "Contour":
+            if self.marking_info[i][0] == "Contour" and self.marking_info[i][3] and self.marking_info[i][-1]:
                 self.draw_contour(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_anchor, number=i+1)
-            elif self.marking_info[i][0] == "Bounding Box":
+            elif self.marking_info[i][0] == "Bounding Box" and self.marking_info[i][3] and self.marking_info[i][-1]:
                 self.draw_bounding_box(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_anchor, number=i+1)
+            elif self.marking_info[i][0] == "Contour" and self.marking_info[i][-1]:
+                self.draw_contour(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_anchor)
+            elif self.marking_info[i][0] == "Bounding Box" and self.marking_info[i][3] and self.marking_info[i][-1]:
+                self.draw_bounding_box(self.marking_info[i][2], dynamic=False, anchor=self.canvas_orig_anchor)
             else:
                 pass
-        self.canvas_last_frame = self.canvas.copy()
 
     ##########################################################################
     ## Event Filter for Drawing Function #####################################
@@ -147,7 +169,7 @@ class QLabelCanvas(QLabel):
                 self.draw_contour(self.temp_area, dynamic=False, anchor=self.canvas_orig_anchor, number=len(self.marking_info)+1)
                 self.canvas_last_frame = self.canvas.copy()
                 self.draw_lines_action_started = False
-                self.marking_info.append(["Contour", "NO LABEL", self.temp_area, True])
+                self.marking_info.append(["Contour", "NO LABEL", self.temp_area, True, True])
                 self.temp_area = []
                 self.table_refresh_signal.emit()
             # Moving
@@ -171,7 +193,7 @@ class QLabelCanvas(QLabel):
                 self.draw_bounding_box([self.b_box_start_corner, curr_point], dynamic=True, anchor=self.canvas_orig_anchor, number=len(self.marking_info)+1)
                 self.canvas_last_frame = self.canvas.copy()
                 self.draw_b_box_action_started = False
-                self.marking_info.append(["Bounding Box", "NO LABEL", [self.b_box_start_corner, curr_point], True])
+                self.marking_info.append(["Bounding Box", "NO LABEL", [self.b_box_start_corner, curr_point], True, True])
                 self.table_refresh_signal.emit()
             # Moving
             if self.draw_b_box_action_started and event.type() == QEvent.MouseMove:
