@@ -46,19 +46,30 @@ class ExportOptionWindow(QMainWindow):
         contour_export_option_v_layout.addWidget(self.contour_export_mask_checkbox)
         contour_export_option_group.setLayout(contour_export_option_v_layout)
 
+        contour_as_b_box_export_option_group = QGroupBox("Contour as Bounding Box")
+        contour_as_b_box_export_option_group.setFixedWidth(320)
+        contour_as_b_box_export_option_v_layout = QVBoxLayout()
+        self.contour_as_b_box_export_exact_corners = QCheckBox("Export Corners (.XML)")
+        self.contour_as_b_box_export_yolo_format = QCheckBox("Export as YOLO format (.TXT)")
+        contour_as_b_box_export_option_v_layout.addWidget(self.contour_as_b_box_export_exact_corners)
+        contour_as_b_box_export_option_v_layout.addWidget(self.contour_as_b_box_export_yolo_format)
+        contour_as_b_box_export_option_group.setLayout(contour_as_b_box_export_option_v_layout)
+
         b_box_export_option_group = QGroupBox("Bounding Box")
+        b_box_export_option_group.setFixedWidth(320)
         b_box_export_option_v_layout = QVBoxLayout()
         self.b_box_export_exact_corners = QCheckBox("Export Corners (.XML)")
         self.b_box_export_yolo_format = QCheckBox("Export as YOLO format (.TXT)")
         self.b_box_export_mask = QCheckBox("Export Mask (.NPY)")
         b_box_export_option_v_layout.addWidget(self.b_box_export_exact_corners)
         b_box_export_option_v_layout.addWidget(self.b_box_export_yolo_format)
-        b_box_export_option_v_layout.addWidget(self.b_box_export_mask)
+        #b_box_export_option_v_layout.addWidget(self.b_box_export_mask)
         b_box_export_option_group.setLayout(b_box_export_option_v_layout)
 
         other_export_option_group = QGroupBox("Other")
 
         export_option_v_layout.addWidget(contour_export_option_group)
+        export_option_v_layout.addWidget(contour_as_b_box_export_option_group)
         export_option_v_layout.addWidget(b_box_export_option_group)
         export_option_v_layout.addWidget(other_export_option_group)
         main_h_layout.addLayout(export_option_v_layout)
@@ -106,16 +117,101 @@ class ExportOptionWindow(QMainWindow):
         self.export_directory.setText(f"Export to Directory: {self.export_directory_path}")
 
     def export_with_option(self):
+        # Contour
         if self.contour_export_points_checkbox:
             self.export_contour_as_point()
         if self.contour_export_mask_checkbox:
             self.export_contour_as_mask()
+        # Contour as Bounding Box
+        if self.contour_as_b_box_export_exact_corners:
+            self.export_contour_as_b_box_exact_corners()
+        if self.contour_as_b_box_export_yolo_format:
+            self.export_contour_as_b_box_in_yolo_format()
+        # Bounding Box
         if self.b_box_export_exact_corners:
-            pass
+            self.export_b_box_as_exact_corners()
         if self.b_box_export_yolo_format:
             self.export_b_box_in_yolo_format()
         if self.b_box_export_mask:
             pass
+
+    def contour_to_box(self, points):
+        # Input: [POINT1, POINT2, POINT3, ...]
+        # Output: [CORNER1, CORNER2]
+        max_x = points[0].x()
+        min_x = points[0].x()
+        max_y = points[0].y()
+        min_y = points[0].y()
+        for i in range(1, len(points)):
+            if points[i].x() > max_x:
+                max_x = points[i].x()
+            if points[i].x() < min_x:
+                min_x = points[i].x()
+            if points[i].y() > max_y:
+                max_y = points[i].y()
+            if points[i].y() < min_y:
+                min_y = points[i].y()
+        b_box = [QPoint(min_x, min_y), QPoint(max_x, max_y)]
+        return b_box
+
+    def export_contour_as_b_box_in_yolo_format(self):
+        # Input: [[TYPE, LABEL, [CORNER1, CORNER2]], ...]
+        # Output (YOLO): LABEL X_CENTER_NORM Y_CENTER_NORM WIDTH_NORM HEIGHT_NORM
+        output_string = ""
+        for i in range(0, len(self.marking_info)):
+            if self.marking_info[i][0] == "Bounding Box":
+                points_as_corners = self.contour_to_box(self.marking_info[i][2])
+                label = self.marking_info[i][1]
+                corner1 = points_as_corners[0]
+                corner2 = points_as_corners[1]
+                corner1_x = corner1.x()
+                corner1_y = corner1.y()
+                corner2_x = corner2.x()
+                corner2_y = corner2.y()
+                x_center_norm = ((corner1_x + corner2_x) / 2) / self.orig_dim[0]
+                y_center_norm = ((corner1_y + corner2_y) / 2) / self.orig_dim[1]
+                width_norm = (corner2_x - corner1_x) / self.orig_dim[0]
+                height_norm = (corner2_y - corner1_y) / self.orig_dim[1]
+                output_string += f"{label} {x_center_norm} {y_center_norm} {width_norm} {height_norm}\n"
+            else:
+                pass
+        if output_string != "":
+            output_string = output_string[:-1]  # For removing the \n at the end of the string
+            with open(f"{self.export_directory_path}/TEST_CONTOUR_AS_B_BOX_YOLO.txt", "w") as text_file:
+                text_file.write(output_string)
+
+    def export_contour_as_b_box_exact_corners(self):
+        point_label_pair_dict = {}
+        for i in range(0, len(self.marking_info)):
+            if self.marking_info[i][0] == "Contour":
+                points_as_corners = self.contour_to_box(self.marking_info[i][2])
+                points_ready = []
+                for j in range(0, len(points_as_corners)):
+                    points_ready.append([min([int(points_as_corners[j].x()), int(self.orig_dim[0]) - 1]),
+                                         min([int(points_as_corners[j].y()), int(self.orig_dim[1]) - 1])])
+                if self.marking_info[i][1] not in point_label_pair_dict.keys():
+                    point_label_pair_dict[self.marking_info[i][1]] = [points_ready]
+                else:
+                    point_label_pair_dict[self.marking_info[i][1]].append(points_ready)
+        save_as_json = open(f"{self.export_directory_path}/TEST_CONTOUR_AS_B_BOX_CORNERS.txt", "w")
+        json.dump(point_label_pair_dict, save_as_json, indent=4)
+        save_as_json.close()
+
+    def export_b_box_as_exact_corners(self):
+        point_label_pair_dict = {}
+        for i in range(0, len(self.marking_info)):
+            if self.marking_info[i][0] == "Bounding Box":
+                points_ready = []
+                for j in range(0, len(self.marking_info[i][2])):
+                    points_ready.append([min([int(self.marking_info[i][2][j].x()), int(self.orig_dim[0]) - 1]),
+                                         min([int(self.marking_info[i][2][j].y()), int(self.orig_dim[1]) - 1])])
+                if self.marking_info[i][1] not in point_label_pair_dict.keys():
+                    point_label_pair_dict[self.marking_info[i][1]] = [points_ready]
+                else:
+                    point_label_pair_dict[self.marking_info[i][1]].append(points_ready)
+        save_as_json = open(f"{self.export_directory_path}/TEST_B_BOX_CORNERS.txt", "w")
+        json.dump(point_label_pair_dict, save_as_json, indent=4)
+        save_as_json.close()
 
     def export_b_box_in_yolo_format(self):
         # Input: [[TYPE, LABEL, [CORNER1, CORNER2]], ...]
