@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QVBoxLayout,
 import main_display
 import import_points_window
 import export_option_window
+import cellpose_option_window
 
 
 class MainWindow(QMainWindow):
@@ -362,23 +363,12 @@ class MainWindow(QMainWindow):
     # Automation #############################################################
     ##########################################################################
     def generate_mask_with_cellpose(self):
-        self._generate_mask_with_cellpose(image_arr=self.old_image_pixmap.canvas_array)
+        self.cellpose_option_window = cellpose_option_window.CellposeOptionWindow(image_arr=self.old_image_pixmap.canvas_array, marking_info=self.old_image_pixmap.marking_info)
+        self.cellpose_option_window.show()
+        self.cellpose_option_window.cellpose_done_signal.connect(self.finish_generate_mask_with_cellpose)
 
-    def _generate_mask_with_cellpose(self, image_arr, model_type='cyto3', use_gpu=False):
-        model = models.Cellpose(gpu=use_gpu, model_type=model_type)
-        masks, _, _, _ = model.eval(image_arr, diameter=None, channels=[0, 0], flow_threshold=0.4, do_3D=False)
-        num_masks = len(np.unique(masks))
-        for i in range(1, num_masks):  # No need to consider "0" label
-            mask_temp = np.zeros(masks.shape, dtype=np.uint8)
-            mask_temp[masks == i] = 1
-            try:
-                contours = cv2.findContours(mask_temp, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-                coord = contours[0][0]
-                coord_qpoint = []
-                for j in range(0, coord.shape[0]):
-                    coord_qpoint.append(QPoint(coord[j, :, 0][0], coord[j, :, 1][0]))
-                self.old_image_pixmap.marking_info.append(["Contour", "NO LABEL", coord_qpoint, True, True])
-            except:
-                print("Mask failure")
+    def finish_generate_mask_with_cellpose(self):
+        self.old_image_pixmap.marking_info = self.cellpose_option_window.marking_info
         self.refresh_seg_label_list_table()
         self.old_image_pixmap.refresh_pixmap_acc_to_vis()
+        self.cellpose_option_window.close()
