@@ -40,7 +40,7 @@ class ExportOptionWindow(QMainWindow):
         contour_export_option_group = QGroupBox("Contour")
         contour_export_option_group.setFixedWidth(320)
         contour_export_option_v_layout = QVBoxLayout()
-        self.contour_export_points_checkbox = QCheckBox("Export Points (.XML)")
+        self.contour_export_points_checkbox = QCheckBox("Export Points (.JSON)")
         self.contour_export_mask_checkbox = QCheckBox("Export Mask (.NPY)")
         contour_export_option_v_layout.addWidget(self.contour_export_points_checkbox)
         contour_export_option_v_layout.addWidget(self.contour_export_mask_checkbox)
@@ -49,7 +49,7 @@ class ExportOptionWindow(QMainWindow):
         contour_as_b_box_export_option_group = QGroupBox("Contour as Bounding Box")
         contour_as_b_box_export_option_group.setFixedWidth(320)
         contour_as_b_box_export_option_v_layout = QVBoxLayout()
-        self.contour_as_b_box_export_exact_corners = QCheckBox("Export Corners (.XML)")
+        self.contour_as_b_box_export_exact_corners = QCheckBox("Export Corners (.JSON)")
         self.contour_as_b_box_export_yolo_format = QCheckBox("Export as YOLO format (.TXT)")
         contour_as_b_box_export_option_v_layout.addWidget(self.contour_as_b_box_export_exact_corners)
         contour_as_b_box_export_option_v_layout.addWidget(self.contour_as_b_box_export_yolo_format)
@@ -58,7 +58,7 @@ class ExportOptionWindow(QMainWindow):
         b_box_export_option_group = QGroupBox("Bounding Box")
         b_box_export_option_group.setFixedWidth(320)
         b_box_export_option_v_layout = QVBoxLayout()
-        self.b_box_export_exact_corners = QCheckBox("Export Corners (.XML)")
+        self.b_box_export_exact_corners = QCheckBox("Export Corners (.JSON)")
         self.b_box_export_yolo_format = QCheckBox("Export as YOLO format (.TXT)")
         self.b_box_export_mask = QCheckBox("Export Mask (.NPY)")
         b_box_export_option_v_layout.addWidget(self.b_box_export_exact_corners)
@@ -95,6 +95,7 @@ class ExportOptionWindow(QMainWindow):
         self.cancel_button.setFixedWidth(150)
         button_h_layout.addWidget(self.export_button)
         button_h_layout.addWidget(self.cancel_button)
+        self.export_button.setEnabled(False)
 
         main_v_layout.addLayout(main_h_layout)
         main_v_layout.addLayout(directory_h_layout)
@@ -115,22 +116,23 @@ class ExportOptionWindow(QMainWindow):
         dialog = QFileDialog()
         self.export_directory_path = dialog.getExistingDirectory(None, "Select Folder")
         self.export_directory.setText(f"Export to Directory: {self.export_directory_path}")
+        self.export_button.setEnabled(True)
 
     def export_with_option(self):
         # Contour
-        if self.contour_export_points_checkbox:
+        if self.contour_export_points_checkbox.isChecked():
             self.export_contour_as_point()
-        if self.contour_export_mask_checkbox:
+        if self.contour_export_mask_checkbox.isChecked():
             self.export_contour_as_mask()
         # Contour as Bounding Box
-        if self.contour_as_b_box_export_exact_corners:
+        if self.contour_as_b_box_export_exact_corners.isChecked():
             self.export_contour_as_b_box_exact_corners()
-        if self.contour_as_b_box_export_yolo_format:
+        if self.contour_as_b_box_export_yolo_format.isChecked():
             self.export_contour_as_b_box_in_yolo_format()
         # Bounding Box
-        if self.b_box_export_exact_corners:
+        if self.b_box_export_exact_corners.isChecked():
             self.export_b_box_as_exact_corners()
-        if self.b_box_export_yolo_format:
+        if self.b_box_export_yolo_format.isChecked():
             self.export_b_box_in_yolo_format()
         if self.b_box_export_mask:
             pass
@@ -159,7 +161,7 @@ class ExportOptionWindow(QMainWindow):
         # Output (YOLO): LABEL X_CENTER_NORM Y_CENTER_NORM WIDTH_NORM HEIGHT_NORM
         output_string = ""
         for i in range(0, len(self.marking_info)):
-            if self.marking_info[i][0] == "Bounding Box":
+            if self.marking_info[i][0] == "Contour":
                 points_as_corners = self.contour_to_box(self.marking_info[i][2])
                 label = self.marking_info[i][1]
                 corner1 = points_as_corners[0]
@@ -193,7 +195,7 @@ class ExportOptionWindow(QMainWindow):
                     point_label_pair_dict[self.marking_info[i][1]] = [points_ready]
                 else:
                     point_label_pair_dict[self.marking_info[i][1]].append(points_ready)
-        save_as_json = open(f"{self.export_directory_path}/TEST_CONTOUR_AS_B_BOX_CORNERS.txt", "w")
+        save_as_json = open(f"{self.export_directory_path}/TEST_CONTOUR_AS_B_BOX_CORNERS.json", "w")
         json.dump(point_label_pair_dict, save_as_json, indent=4)
         save_as_json.close()
 
@@ -209,7 +211,7 @@ class ExportOptionWindow(QMainWindow):
                     point_label_pair_dict[self.marking_info[i][1]] = [points_ready]
                 else:
                     point_label_pair_dict[self.marking_info[i][1]].append(points_ready)
-        save_as_json = open(f"{self.export_directory_path}/TEST_B_BOX_CORNERS.txt", "w")
+        save_as_json = open(f"{self.export_directory_path}/TEST_B_BOX_CORNERS.json", "w")
         json.dump(point_label_pair_dict, save_as_json, indent=4)
         save_as_json.close()
 
@@ -251,7 +253,7 @@ class ExportOptionWindow(QMainWindow):
                     point_label_pair_dict[self.marking_info[i][1]] = [points_ready]
                 else:
                     point_label_pair_dict[self.marking_info[i][1]].append(points_ready)
-        save_as_json = open(f"{self.export_directory_path}/TEST_CONTOUR_POINTS.txt", "w")
+        save_as_json = open(f"{self.export_directory_path}/TEST_CONTOUR_POINTS.json", "w")
         json.dump(point_label_pair_dict, save_as_json, indent=4)
         save_as_json.close()
 

@@ -21,9 +21,9 @@ class MainWindow(QMainWindow):
         super(QMainWindow, self).__init__()
 
         # Basic software information
-        self.VERSION = "1.3"
-        self.RELEASE_DATE = "18-Jul-2024"
-        self.COMPOSER = "NGPF"
+        self.VERSION = "1.4"
+        self.RELEASE_DATE = "22-Jul-2024"
+        self.COMPOSER = "NGPF & Ricky"
 
         self.orig_image = None
         self.orig_image_dir = None
@@ -349,10 +349,17 @@ class MainWindow(QMainWindow):
             self.import_points_json_window = import_points_window.ImportPointsWindow()
             self.import_points_json_window.fill_table(data)
             self.import_points_json_window.show()
+            self.import_points_json_window.import_done_signal.connect(self.finish_import_points_from_json)
         elif open_file == "":
             pass
         else:
             return
+    
+    def finish_import_points_from_json(self):
+        self.old_image_pixmap.marking_info = self.import_points_json_window.marking_info
+        self.refresh_seg_label_list_table()
+        self.old_image_pixmap.refresh_pixmap_acc_to_vis()
+        self.import_points_json_window.close()
 
     ##########################################################################
     # Export Option ##########################################################

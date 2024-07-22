@@ -29,7 +29,7 @@ class CellposeOptionWindow(QMainWindow):
 
         diameter_h_layout = QHBoxLayout()
         self.diameter_text = QLabel("Diameter")
-        self.diameter_input = QLineEdit()
+        self.diameter_input = QLineEdit("160")
         diameter_h_layout.addWidget(self.diameter_text)
         diameter_h_layout.addWidget(self.diameter_input)
 
