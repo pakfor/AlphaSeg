@@ -316,7 +316,7 @@ class MainWindow(QMainWindow):
         if self.seg_label_list_table.rowCount() == 0:
             pass
         else:
-            for i in range(0, self.marking_info):
+            for i in range(0, len(self.marking_info)):
                 self.marking_info[i][1] = self.seg_label_list_table.cellWidget(i, 3).text()
 
     def reset_pixmap(self):
