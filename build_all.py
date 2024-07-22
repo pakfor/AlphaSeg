@@ -16,17 +16,17 @@ import os
 import shutil
 
 
-def build_gui(source_dir, build_dir):
+def build_gui(source_dir, build_dir, env_name):
     # Ensure working in root directory
     os.chdir(os.path.expanduser("~"))
     BAT_NAME = os.path.join(os.getcwd(), "build_alphaseg.bat")
 
     # Check whether appropriate number of arguments is supplied
-    if len(sys.argv) < 3:
-        print(f"Not enough arguments. Expect 2, got {len(sys.argv) - 1}.")
+    if len(sys.argv) < 4:
+        print(f"Not enough arguments. Expect 3, got {len(sys.argv) - 1}.")
         sys.exit()
-    elif len(sys.argv) > 3:
-        print(f"Too many arguments. Expect 2, got {len(sys.argv - 1)}.")
+    elif len(sys.argv) > 4:
+        print(f"Too many arguments. Expect 3, got {len(sys.argv - 1)}.")
         sys.exit()
     else:
         # Check whether the supplied directories exist
@@ -54,7 +54,7 @@ def build_gui(source_dir, build_dir):
         with open(BAT_NAME, 'w+') as f:
             f.write(source_dir[0:2] + "\n")
             f.write("cd " + source_dir + "\n")
-            f.write("call activate alpha_seg" + "\n")
+            f.write(f"call activate {env_name}" + "\n")
             f.write("pyinstaller main.py" + "\n")
             f.close()
         # Call the BAT file
@@ -69,4 +69,4 @@ def build_gui(source_dir, build_dir):
         print("Finished.")
 
 if __name__ == '__main__':
-    build_gui(sys.argv[1], sys.argv[2])
+    build_gui(sys.argv[1], sys.argv[2], sys.argv[3])

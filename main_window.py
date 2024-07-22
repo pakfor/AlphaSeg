@@ -14,6 +14,7 @@ import main_display
 import import_points_window
 import export_option_window
 import cellpose_option_window
+import preferences_window
 
 
 class MainWindow(QMainWindow):
@@ -67,6 +68,7 @@ class MainWindow(QMainWindow):
 
         # Preference
         self.pref_action = QAction("&Preferences", self)
+        self.pref_action.triggered.connect(self.open_preference_window)
         self.edit_menu.addAction(self.pref_action)
 
         # Status bar
@@ -153,6 +155,7 @@ class MainWindow(QMainWindow):
         self.seg_label_list_table.setWordWrap(True)
         self.seg_label_list_table.clearContents()
         self.seg_label_list_table.setRowCount(0)
+        self.label_drop_down_choices = ["Label 1", "Label 2", "Label 3", "No Label"]
 
         seg_label_list_function_h_layout = QHBoxLayout()
         self.remove_mask_button = QPushButton("Remove Selected")
@@ -381,3 +384,10 @@ class MainWindow(QMainWindow):
         self.refresh_seg_label_list_table()
         self.old_image_pixmap.refresh_pixmap_acc_to_vis()
         self.cellpose_option_window.close()
+
+    ##########################################################################
+    # Preference Window ######################################################
+    ##########################################################################
+    def open_preference_window(self):
+        self.preference_window = preferences_window.PreferencesWindow()
+        self.preference_window.show()
