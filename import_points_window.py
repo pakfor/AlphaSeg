@@ -41,9 +41,6 @@ class ImportPointsWindow(QMainWindow):
         main_v_layout.addWidget(self.points_info_table)
         main_v_layout.addLayout(function_h_layout)
 
-    #def process_dictionary(self, points):
-    #    pass
-
     def fill_table(self, points):
         self.point = points
         # Loop through labels

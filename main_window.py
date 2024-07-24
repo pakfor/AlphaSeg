@@ -155,7 +155,7 @@ class MainWindow(QMainWindow):
         self.seg_label_list_table.setWordWrap(True)
         self.seg_label_list_table.clearContents()
         self.seg_label_list_table.setRowCount(0)
-        self.label_drop_down_choices = ["Label 1", "Label 2", "Label 3", "No Label"]
+        self.label_drop_down_choices = []
 
         seg_label_list_function_h_layout = QHBoxLayout()
         self.remove_mask_button = QPushButton("Remove Selected")
@@ -287,9 +287,15 @@ class MainWindow(QMainWindow):
             table_area_type_text = QLabel()  # Set as label because the user cannot change the type of the marking
             table_area_type_text.setText(str(self.marking_info[i][0]))
             # Labels for marked areas
-            table_area_label_text = QLineEdit()  # Set as line edit because the label can be changed
-            table_area_label_text.setText(str(self.marking_info[i][1]))
-            table_area_label_text.textChanged.connect(self.refresh_area_labels)
+            #table_area_label_text = QLineEdit()  # Set as line edit because the label can be changed
+            #table_area_label_text.setText(str(self.marking_info[i][1]))
+            #table_area_label_text.textChanged.connect(self.refresh_area_labels)
+            table_area_label_text = QComboBox()
+            table_area_label_text.addItem("NO LABEL")
+            table_area_label_text.addItems(self.label_drop_down_choices)
+            table_area_label_text.setCurrentText(str(self.marking_info[i][1]))
+            table_area_label_text.currentIndexChanged.connect(self.refresh_area_labels)
+            
 
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 0, table_select_check_box)
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 1, table_show_check_box)
@@ -312,12 +318,12 @@ class MainWindow(QMainWindow):
             self.old_image_pixmap.marking_info = self.marking_info
             self.old_image_pixmap.refresh_pixmap_acc_to_vis()
 
-    def refresh_area_labels(self):
+    def refresh_area_labels(self, _):
         if self.seg_label_list_table.rowCount() == 0:
             pass
         else:
             for i in range(0, len(self.marking_info)):
-                self.marking_info[i][1] = self.seg_label_list_table.cellWidget(i, 3).text()
+                self.marking_info[i][1] = self.seg_label_list_table.cellWidget(i, 3).currentText()
 
     def reset_pixmap(self):
         self.old_image_pixmap.setPixmap(self.qpixmap_orig)
@@ -360,6 +366,9 @@ class MainWindow(QMainWindow):
     
     def finish_import_points_from_json(self):
         self.old_image_pixmap.marking_info = self.import_points_json_window.marking_info
+        for i in range(0, len(self.old_image_pixmap.marking_info)):
+            if self.old_image_pixmap.marking_info[i][1] not in self.label_drop_down_choices:
+                self.label_drop_down_choices.append(self.old_image_pixmap.marking_info[i][1])
         self.refresh_seg_label_list_table()
         self.old_image_pixmap.refresh_pixmap_acc_to_vis()
         self.import_points_json_window.close()
@@ -389,5 +398,14 @@ class MainWindow(QMainWindow):
     # Preference Window ######################################################
     ##########################################################################
     def open_preference_window(self):
-        self.preference_window = preferences_window.PreferencesWindow()
+        self.preference_window = preferences_window.PreferencesWindow(label=self.label_drop_down_choices)
         self.preference_window.show()
+        self.preference_window.change_label_drop_down_list_signal.connect(self.finish_add_list_label_preference_window)
+    
+    def finish_add_list_label_preference_window(self):
+        #self.table_area_label_text.clear()
+        #self.table_area_label_text.addItem("NO LABEL")
+        self.label_drop_down_choices = self.preference_window.label
+        self.refresh_seg_label_list_table()
+        #self.table_area_label_text.addItems(self.label_drop_down_choices)
+        
