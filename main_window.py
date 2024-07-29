@@ -22,9 +22,9 @@ class MainWindow(QMainWindow):
         super(QMainWindow, self).__init__()
 
         # Basic software information
-        self.VERSION = "1.4"
-        self.RELEASE_DATE = "22-Jul-2024"
-        self.COMPOSER = "NGPF & Ricky"
+        self.VERSION = "1.4.1"
+        self.RELEASE_DATE = "29-Jul-2024"
+        self.COMPOSER = "AlphaHKU"
 
         self.orig_image = None
         self.orig_image_dir = None
@@ -183,33 +183,40 @@ class MainWindow(QMainWindow):
         if self.draw_polygon_button.isChecked():
             self.old_image_pixmap.draw_lines = True
             self.draw_b_box_button.setEnabled(False)
+            self.magnify_zoom_button.setEnabled(False)
+            self.origin_zoom_button.setEnabled(False)
         else:
             self.old_image_pixmap.draw_lines = False
             self.draw_b_box_button.setEnabled(True)
+            self.magnify_zoom_button.setEnabled(True)
+            self.origin_zoom_button.setEnabled(True)
 
     def enable_bounding_box_drawing(self):
         if self.draw_b_box_button.isChecked():
             self.old_image_pixmap.draw_b_box = True
             self.draw_polygon_button.setEnabled(False)
+            self.magnify_zoom_button.setEnabled(False)
+            self.origin_zoom_button.setEnabled(False)
         else:
             self.old_image_pixmap.draw_b_box = False
             self.draw_polygon_button.setEnabled(True)
+            self.magnify_zoom_button.setEnabled(True)
+            self.origin_zoom_button.setEnabled(True)
 
     def enable_zoom(self):
         if self.magnify_zoom_button.isChecked():
             self.old_image_pixmap.zoom = True
-        #else:
-        #    self.old_image_pixmap.zoom = False
+        # This is needed because the user should be able to disable the zoom manually
+        else:
+            self.old_image_pixmap.zoom = False
 
     def zoom_to_origin(self):
         self.old_image_pixmap.replace_canvas_origin()
         self.old_image_pixmap.zoom = False
+        self.magnify_zoom_button.setChecked(False)
 
     def set_pixmap_from_array(self, image_arr):
         image_arr = image_arr[:, :, 0:3].astype('uint8')
-        print(image_arr.shape)
-        plt.imshow(image_arr)
-        plt.show()
         qimage = QImage(image_arr, image_arr.shape[1], image_arr.shape[0], 3 * image_arr.shape[1], QImage.Format_RGB888)
         self.image_width_orig = image_arr.shape[1]
         self.image_height_orig = image_arr.shape[0]
