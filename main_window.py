@@ -22,8 +22,8 @@ class MainWindow(QMainWindow):
         super(QMainWindow, self).__init__()
 
         # Basic software information
-        self.VERSION = "1.4.1"
-        self.RELEASE_DATE = "29-Jul-2024"
+        self.VERSION = "1.4.2"
+        self.RELEASE_DATE = "30-Jul-2024"
         self.COMPOSER = "AlphaHKU"
 
         self.orig_image = None
@@ -302,7 +302,6 @@ class MainWindow(QMainWindow):
             table_area_label_text.addItems(self.label_drop_down_choices)
             table_area_label_text.setCurrentText(str(self.marking_info[i][1]))
             table_area_label_text.currentIndexChanged.connect(self.refresh_area_labels)
-            
 
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 0, table_select_check_box)
             self.seg_label_list_table.setCellWidget(self.seg_label_list_table.rowCount() - 1, 1, table_show_check_box)

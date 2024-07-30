@@ -6,6 +6,8 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
+import marking_summary_window
+
 class ExportOptionWindow(QMainWindow):
     def __init__(self, marking_info, orig_dim, display_dim):
         super(ExportOptionWindow, self).__init__()
@@ -38,7 +40,7 @@ class ExportOptionWindow(QMainWindow):
         export_option_v_layout.setAlignment(Qt.AlignTop)
 
         contour_export_option_group = QGroupBox("Contour")
-        contour_export_option_group.setFixedWidth(320)
+        contour_export_option_group.setMinimumWidth(320)
         contour_export_option_v_layout = QVBoxLayout()
         self.contour_export_points_checkbox = QCheckBox("Export Points (.JSON)")
         self.contour_export_mask_checkbox = QCheckBox("Export Mask (.NPY)")
@@ -47,7 +49,7 @@ class ExportOptionWindow(QMainWindow):
         contour_export_option_group.setLayout(contour_export_option_v_layout)
 
         contour_as_b_box_export_option_group = QGroupBox("Contour as Bounding Box")
-        contour_as_b_box_export_option_group.setFixedWidth(320)
+        contour_as_b_box_export_option_group.setMinimumWidth(320)
         contour_as_b_box_export_option_v_layout = QVBoxLayout()
         self.contour_as_b_box_export_exact_corners = QCheckBox("Export Corners (.JSON)")
         self.contour_as_b_box_export_yolo_format = QCheckBox("Export as YOLO format (.TXT)")
@@ -56,7 +58,7 @@ class ExportOptionWindow(QMainWindow):
         contour_as_b_box_export_option_group.setLayout(contour_as_b_box_export_option_v_layout)
 
         b_box_export_option_group = QGroupBox("Bounding Box")
-        b_box_export_option_group.setFixedWidth(320)
+        b_box_export_option_group.setMinimumWidth(320)
         b_box_export_option_v_layout = QVBoxLayout()
         self.b_box_export_exact_corners = QCheckBox("Export Corners (.JSON)")
         self.b_box_export_yolo_format = QCheckBox("Export as YOLO format (.TXT)")
@@ -88,11 +90,15 @@ class ExportOptionWindow(QMainWindow):
         # Buttons
         button_h_layout = QHBoxLayout()
         button_h_layout.setAlignment(Qt.AlignRight)
+        self.summary_button = QPushButton("Summary")
+        self.summary_button.setFixedWidth(150)
+        self.summary_button.clicked.connect(self.open_summary_window)
         self.export_button = QPushButton("Export")
         self.export_button.setFixedWidth(150)
         self.export_button.clicked.connect(self.export_with_option)
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.setFixedWidth(150)
+        button_h_layout.addWidget(self.summary_button)
         button_h_layout.addWidget(self.export_button)
         button_h_layout.addWidget(self.cancel_button)
         self.export_button.setEnabled(False)
@@ -280,6 +286,10 @@ class ExportOptionWindow(QMainWindow):
             else:
                 pass
         np.save(f"{self.export_directory_path}/TEST_CONTOUR_MASK.npy", mask_npy)
+
+    def open_summary_window(self):
+        self.summary_window = marking_summary_window.MarkingSummaryWindow(self.marking_info)
+        self.summary_window.show()
 
 # For testing only
 if __name__ == '__main__':
