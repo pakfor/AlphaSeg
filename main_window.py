@@ -383,7 +383,7 @@ class MainWindow(QMainWindow):
     # Export Option ##########################################################
     ##########################################################################
     def export_with_option(self):
-        self.export_option_window = export_option_window.ExportOptionWindow(self.marking_info, (self.image_width_orig, self.image_height_orig), (self.image_width_scaled, self.image_height_scaled))
+        self.export_option_window = export_option_window.ExportOptionWindow(self.marking_info, (self.image_width_orig, self.image_height_orig), (self.image_width_scaled, self.image_height_scaled), self.orig_image_dir)
         self.export_option_window.show()
 
     ##########################################################################

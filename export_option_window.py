@@ -9,12 +9,13 @@ import matplotlib.pyplot as plt
 import marking_summary_window
 
 class ExportOptionWindow(QMainWindow):
-    def __init__(self, marking_info, orig_dim, display_dim):
+    def __init__(self, marking_info, orig_dim, display_dim, img_orig_dir):
         super(ExportOptionWindow, self).__init__()
         self.marking_info = marking_info
         self.orig_dim = orig_dim  # (Width, Height)
         self.display_dim = display_dim  # (Width, Height)
         self.image_scaled_ratio = self.orig_dim[0] / self.display_dim[0]
+        self.image_name_orig = img_orig_dir.split("/")[-1].split(".")[0]
         self.setWindowTitle("Export")
         self.build_gui()
 
@@ -76,6 +77,15 @@ class ExportOptionWindow(QMainWindow):
         export_option_v_layout.addWidget(other_export_option_group)
         main_h_layout.addLayout(export_option_v_layout)
 
+        # Export file name
+        file_name_h_layout = QHBoxLayout()
+        self.file_name_title = QLabel()
+        self.file_name_title.setText("File Name:")
+        self.file_name_fill_box = QLineEdit()
+        self.file_name_fill_box.setText(self.image_name_orig)
+        file_name_h_layout.addWidget(self.file_name_title)
+        file_name_h_layout.addWidget(self.file_name_fill_box)
+
         # Directory
         directory_h_layout = QHBoxLayout()
         self.export_directory = QLabel()
@@ -104,6 +114,7 @@ class ExportOptionWindow(QMainWindow):
         self.export_button.setEnabled(False)
 
         main_v_layout.addLayout(main_h_layout)
+        main_v_layout.addLayout(file_name_h_layout)
         main_v_layout.addLayout(directory_h_layout)
         main_v_layout.addLayout(button_h_layout)
 
@@ -185,7 +196,8 @@ class ExportOptionWindow(QMainWindow):
                 pass
         if output_string != "":
             output_string = output_string[:-1]  # For removing the \n at the end of the string
-            with open(f"{self.export_directory_path}/TEST_CONTOUR_AS_B_BOX_YOLO.txt", "w") as text_file:
+            save_file_name = self.file_name_fill_box.text()
+            with open(f"{self.export_directory_path}/{save_file_name}.txt", "w") as text_file:
                 text_file.write(output_string)
 
     def export_contour_as_b_box_exact_corners(self):
@@ -201,7 +213,8 @@ class ExportOptionWindow(QMainWindow):
                     point_label_pair_dict[self.marking_info[i][1]] = [points_ready]
                 else:
                     point_label_pair_dict[self.marking_info[i][1]].append(points_ready)
-        save_as_json = open(f"{self.export_directory_path}/TEST_CONTOUR_AS_B_BOX_CORNERS.json", "w")
+        save_file_name = self.file_name_fill_box.text()
+        save_as_json = open(f"{self.export_directory_path}/{save_file_name}.json", "w")
         json.dump(point_label_pair_dict, save_as_json, indent=4)
         save_as_json.close()
 
@@ -217,7 +230,8 @@ class ExportOptionWindow(QMainWindow):
                     point_label_pair_dict[self.marking_info[i][1]] = [points_ready]
                 else:
                     point_label_pair_dict[self.marking_info[i][1]].append(points_ready)
-        save_as_json = open(f"{self.export_directory_path}/TEST_B_BOX_CORNERS.json", "w")
+        save_file_name = self.file_name_fill_box.text()
+        save_as_json = open(f"{self.export_directory_path}/{save_file_name}.json", "w")
         json.dump(point_label_pair_dict, save_as_json, indent=4)
         save_as_json.close()
 
@@ -242,8 +256,9 @@ class ExportOptionWindow(QMainWindow):
             else:
                 pass
         if output_string != "":
+            save_file_name = self.file_name_fill_box.text()
             output_string = output_string[:-1]  # For removing the \n at the end of the string
-            with open(f"{self.export_directory_path}/TEST_B_BOX_YOLO.txt", "w") as text_file:
+            with open(f"{self.export_directory_path}/{save_file_name}.txt", "w") as text_file:
                 text_file.write(output_string)
 
     def export_contour_as_point(self):
@@ -259,7 +274,8 @@ class ExportOptionWindow(QMainWindow):
                     point_label_pair_dict[self.marking_info[i][1]] = [points_ready]
                 else:
                     point_label_pair_dict[self.marking_info[i][1]].append(points_ready)
-        save_as_json = open(f"{self.export_directory_path}/TEST_CONTOUR_POINTS.json", "w")
+        save_file_name = self.file_name_fill_box.text()
+        save_as_json = open(f"{self.export_directory_path}/{save_file_name}.json", "w")
         json.dump(point_label_pair_dict, save_as_json, indent=4)
         save_as_json.close()
 
@@ -285,7 +301,8 @@ class ExportOptionWindow(QMainWindow):
                 mask_npy[:, :, index] = mask_temp
             else:
                 pass
-        np.save(f"{self.export_directory_path}/TEST_CONTOUR_MASK.npy", mask_npy)
+        save_file_name = self.file_name_fill_box.text()
+        np.save(f"{self.export_directory_path}/{save_file_name}.npy", mask_npy)
 
     def open_summary_window(self):
         self.summary_window = marking_summary_window.MarkingSummaryWindow(self.marking_info)
@@ -296,6 +313,6 @@ if __name__ == '__main__':
     import sys
     import PyQt5
     app = PyQt5.QtWidgets.QApplication(sys.argv)
-    window = ExportOptionWindow([["Contour", "LABEL1"], ["Bounding Box", "LABEL2"]], (700, 700), (700, 700))
+    window = ExportOptionWindow([["Contour", "LABEL1"], ["Bounding Box", "LABEL2"]], (700, 700), (700, 700), "XXX/img1.png")
     window.show()
     sys.exit(app.exec_())
