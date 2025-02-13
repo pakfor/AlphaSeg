@@ -2,6 +2,7 @@ import copy
 import cv2
 import json
 import numpy as np
+import skimage
 import matplotlib.pyplot as plt
 from cellpose import models
 from PIL import Image, ImageQt
@@ -66,10 +67,15 @@ class MainWindow(QMainWindow):
         self.cellpose_mask_function.triggered.connect(self.generate_mask_with_cellpose)
         self.automation_menu.addAction(self.cellpose_mask_function)
 
-        # Preference
+        # Edit - Preference
         self.pref_action = QAction("&Preferences", self)
         self.pref_action.triggered.connect(self.open_preference_window)
         self.edit_menu.addAction(self.pref_action)
+
+        # Edit - Histogram Equalization
+        self.hist_eq_action = QAction("&Histogram Equalization", self)
+        self.hist_eq_action.triggered.connect(self.run_hist_eq)
+        self.edit_menu.addAction(self.hist_eq_action)
 
         # Status bar
         self.base_status_bar = QStatusBar()
@@ -414,4 +420,13 @@ class MainWindow(QMainWindow):
         self.label_drop_down_choices = self.preference_window.label
         self.refresh_seg_label_list_table()
         #self.table_area_label_text.addItems(self.label_drop_down_choices)
-        
+
+    ##########################################################################
+    # Histogram Equalization #################################################
+    ##########################################################################
+    def run_hist_eq(self):
+        self.orig_image = cv2.cvtColor(self.orig_image, cv2.COLOR_BGR2GRAY)
+        self.orig_image = skimage.exposure.equalize_hist(self.orig_image)
+        self.orig_image = np.expand_dims(self.orig_image, -1)
+        self.orig_image = np.concatenate((self.orig_image, self.orig_image, self.orig_image), axis=-1) * 255.0
+        self.set_pixmap_from_array(self.orig_image)
